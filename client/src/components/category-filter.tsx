@@ -13,7 +13,7 @@ const categories = [
 
 export function CategoryFilter({ selectedCategory, onCategoryChange }: CategoryFilterProps) {
   return (
-    <section className="max-w-md mx-auto px-4 mb-4">
+    <section className="max-w-4xl mx-auto px-4 mb-4">
       <div className="flex space-x-2 overflow-x-auto pb-2">
         {categories.map((category) => (
           <button

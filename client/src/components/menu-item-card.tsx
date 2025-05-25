@@ -44,11 +44,11 @@ export function MenuItemCard({ item, onAddToCart, compact = false }: MenuItemCar
 
   return (
     <div className="bg-restaurant-surface rounded-2xl shadow-sm overflow-hidden">
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         <img
           src={item.imageUrl}
           alt={item.name}
-          className="w-24 h-24 object-cover flex-shrink-0"
+          className="w-full md:w-24 h-32 md:h-24 object-cover flex-shrink-0"
         />
         <div className="flex-1 p-4">
           <div className="flex justify-between items-start mb-2">

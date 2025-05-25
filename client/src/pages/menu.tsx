@@ -60,7 +60,7 @@ export default function MenuPage() {
     <div className="min-h-screen bg-restaurant-background">
       {/* Header */}
       <header className="bg-restaurant-surface shadow-sm sticky top-0 z-40">
-        <div className="max-w-md mx-auto px-4 py-3">
+        <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -91,7 +91,7 @@ export default function MenuPage() {
 
       {/* Search Results */}
       {showSearchResults && (
-        <section className="max-w-md mx-auto px-4 mb-4">
+        <section className="max-w-4xl mx-auto px-4 mb-4">
           <div className="bg-restaurant-surface rounded-2xl shadow-sm p-4">
             <h3 className="font-semibold text-restaurant-secondary mb-3">
               搜尋結果: "{searchQuery}"
@@ -121,7 +121,7 @@ export default function MenuPage() {
       />
 
       {/* Menu Items */}
-      <main className="max-w-md mx-auto px-4 pb-24">
+      <main className="max-w-4xl mx-auto px-4 pb-24">
         <div className="space-y-6">
           {/* Popular Items Section */}
           {(selectedCategory === "all" || showSearchResults) && (
@@ -130,7 +130,7 @@ export default function MenuPage() {
                 <span className="text-primary mr-2">🔥</span>
                 人氣推薦
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {popularItems.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -149,7 +149,7 @@ export default function MenuPage() {
                 <span className="text-primary mr-2">🍜</span>
                 麵食類
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(selectedCategory === "noodles" ? displayItems : noodleItems).map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -168,7 +168,7 @@ export default function MenuPage() {
                 <span className="text-primary mr-2">🥤</span>
                 飲料
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(selectedCategory === "drinks" ? displayItems : drinkItems).map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -187,7 +187,7 @@ export default function MenuPage() {
                 {selectedCategory === "rice" && "飯類"}
                 {selectedCategory === "appetizers" && "開胃菜"}
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {displayItems.map((item) => (
                   <MenuItemCard
                     key={item.id}

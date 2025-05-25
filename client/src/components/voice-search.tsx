@@ -63,7 +63,7 @@ export function VoiceSearch({ onSearchResult }: VoiceSearchProps) {
   };
 
   return (
-    <section className="max-w-md mx-auto px-4 py-4">
+    <section className="max-w-4xl mx-auto px-4 py-4">
       <div className="bg-restaurant-surface rounded-2xl shadow-sm p-4 mb-4">
         <div className="flex items-center space-x-3">
           <button
