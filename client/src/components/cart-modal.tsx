@@ -8,8 +8,11 @@ interface CartModalProps {
 }
 
 export function CartModal({ isOpen, onClose }: CartModalProps) {
-  const { cartItems, updateQuantity, removeFromCart, getTotalPrice, createOrder } = useCart();
+  const { cartItems, updateQuantity, removeFromCart, getTotalPrice, createOrder, isLoading } = useCart();
   const { toast } = useToast();
+
+  // Debug log
+  console.log("Cart Items in Modal:", cartItems);
 
   if (!isOpen) return null;
 

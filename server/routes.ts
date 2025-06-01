@@ -82,8 +82,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cart", async (req, res) => {
     try {
       const validatedData = insertCartItemSchema.parse(req.body);
-      const cartItem = await storage.addToCart(validatedData);
-      res.json(cartItem);
+      await storage.addToCart(validatedData);
+      // Return the full cart for the session
+      const items = await storage.getCartItems(validatedData.sessionId);
+      res.json(items);
     } catch (error) {
       console.error("Error adding to cart:", error);
       res.status(400).json({ message: "Failed to add item to cart" });

@@ -19,19 +19,41 @@ export function useCart() {
 
   const { data: cartItems = [], isLoading } = useQuery<(CartItem & { menuItem: MenuItem })[]>({
     queryKey: ["/api/cart", sessionId],
+    queryFn: async () => {
+      console.log("Fetching cart for session:", sessionId);
+      const response = await apiRequest("GET", `/api/cart/${sessionId}`);
+      if (!response.ok) {
+        throw new Error(`Error fetching cart: ${response.statusText}`);
+      }
+      const data = await response.json();
+      console.log("Cart data fetched:", data);
+      return data;
+    },
   });
+
+  console.log("useCart state - isLoading:", isLoading, "cartItems:", cartItems);
 
   const addToCartMutation = useMutation({
     mutationFn: async (menuItem: MenuItem) => {
+      console.log("Adding item to cart:", menuItem.id);
       const response = await apiRequest("POST", "/api/cart", {
         sessionId,
         menuItemId: menuItem.id,
         quantity: 1,
       });
-      return response.json();
+      if (!response.ok) {
+        throw new Error(`Error adding to cart: ${response.statusText}`);
+      }
+      const data = await response.json();
+      console.log("Add to cart response data:", data);
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("addToCartMutation successful. Invalidating queries.", data);
       queryClient.invalidateQueries({ queryKey: ["/api/cart", sessionId] });
+    },
+    onError: (error) => {
+      console.error("addToCartMutation failed:", error);
     },
   });
 
