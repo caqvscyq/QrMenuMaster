@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <script type="module" crossorigin src="/assets/index-Dx8FXM-q.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DiOWcpp-.css">
+
+    <!-- Auto-cleanup invalid sessions BEFORE the app loads -->
+    <script src="/customer/cleanup-invalid-sessions.js"></script>
+
+    <!-- Order Tracking Fix Script - Inline (CSP now allows unsafe-inline) -->
+    <script>
+      // Order Tracking Fix - Inline Version (CSP Fixed)
+      (function() {
+        'use strict';
+
+        console.log('🔧 Loading Order Tracking Fix (Inline - CSP Fixed)...');
+
+        // Function to get the correct session ID
+        function getCorrectSessionId() {
+          const params = new URLSearchParams(window.location.search);
+          const tableNumber = params.get('table') || 'unknown';
+          const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+
+          console.log("🔍 Getting session ID for table:", validTableNumber);
+
+          let sessionId = "";
+
+          // Method 1: Check localStorage with various keys (most reliable)
+          const possibleKeys = [
+            `session-backup-${validTableNumber}`,
+            `cart-session-id-${validTableNumber}`,
+            `session-debug-${validTableNumber}`,
+            `database-session-${validTableNumber}`,
+            `session-${validTableNumber}`
+          ];
+
+          for (const key of possibleKeys) {
+            const stored = localStorage.getItem(key);
+            if (stored && stored.startsWith('session-')) {
+              sessionId = stored;
+              console.log(`✅ Found session in localStorage key: ${key}`);
+              break;
+            }
+          }
+
+          // Method 2: Check global variables
+          if (!sessionId) {
+            try {
+              if (window.__currentSessionId && window.__currentSessionId.startsWith('session-')) {
+                sessionId = window.__currentSessionId;
+                console.log('✅ Found session in window.__currentSessionId');
+              }
+            } catch (e) {}
+          }
+
+          console.log("🔍 Retrieved session ID for table", validTableNumber, ":", sessionId || 'NOT_FOUND');
+          return sessionId;
+        }
+
+        // Function to fetch orders with correct session ID
+        async function fetchOrdersWithCorrectSession() {
+          const sessionId = getCorrectSessionId();
+          const params = new URLSearchParams(window.location.search);
+          const tableNumber = params.get('table') || 'unknown';
+
+          if (!sessionId) {
+            console.warn('⚠️ No valid session ID found for order tracking');
+            return [];
+          }
+
+          try {
+            console.log('📡 Fetching orders with session:', sessionId);
+            const response = await fetch('/api/customer/orders', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-session-id': sessionId,
+                'x-table-number': tableNumber
+              }
+            });
+
+            if (!response.ok) {
+              console.error(`❌ HTTP error! status: ${response.status}`);
+              return [];
+            }
+
+            const orders = await response.json();
+            console.log('✅ Orders fetched successfully:', orders.length, 'orders found');
+            return Array.isArray(orders) ? orders : [];
+          } catch (error) {
+            console.error('❌ Error fetching orders:', error);
+            return [];
+          }
+        }
+
+        // Function to update order tracking modal content
+        function updateOrderTrackingModal(orders) {
+          const params = new URLSearchParams(window.location.search);
+          const tableNumber = params.get('table') || 'unknown';
+
+          console.log('🔧 Attempting to update modal with', orders.length, 'orders');
+
+          // Find modal elements - comprehensive search
+          const modalSelectors = [
+            '.modal-content',
+            '[class*="modal"]',
+            '[class*="Modal"]',
+            '[role="dialog"]',
+            '.dialog',
+            '[class*="dialog"]',
+            '[class*="overlay"]',
+            '[class*="popup"]'
+          ];
+
+          let modalContent = null;
+          for (const selector of modalSelectors) {
+            const elements = document.querySelectorAll(selector);
+            for (const element of elements) {
+              if (element.textContent && (
+                element.textContent.includes('目前沒有訂單') ||
+                element.textContent.includes('桌號') ||
+                element.textContent.includes('訂單') ||
+                element.textContent.includes('追蹤')
+              )) {
+                modalContent = element;
+                console.log('✅ Found modal element:', selector);
+                break;
+              }
+            }
+            if (modalContent) break;
+          }
+
+          if (!modalContent) {
+            console.warn('⚠️ Could not find modal content area, trying text search...');
+            const allElements = document.querySelectorAll('*');
+            for (const element of allElements) {
+              if (element.textContent && element.textContent.includes('目前沒有訂單')) {
+                modalContent = element.closest('div') || element;
+                console.log('✅ Found modal by text content');
+                break;
+              }
+            }
+          }
+
+          if (!modalContent) {
+            console.error('❌ Could not find modal content area to update');
+            return false;
+          }
+
+          // Create order display HTML
+          let orderHtml = '';
+
+          if (orders.length === 0) {
+            orderHtml = `
+              <div style="text-align: center; padding: 20px; font-family: Arial, sans-serif;">
+                <h3 style="color: #333; margin-bottom: 10px;">桌號 ${tableNumber} 目前沒有訂單</h3>
+                <p style="color: #666; margin: 10px 0;">您還沒有下任何訂單</p>
+                <button onclick="window.location.reload()" style="
+                  background: #ff6b35;
+                  color: white;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 6px;
+                  margin-top: 15px;
+                  cursor: pointer;
+                  font-size: 14px;
+                  font-weight: 500;
+                ">重新整理</button>
+              </div>
+            `;
+          } else {
+            orderHtml = `
+              <div style="padding: 20px; font-family: Arial, sans-serif;">
+                <h3 style="color: #333; margin-bottom: 15px;">桌號 ${tableNumber} 的訂單 (${orders.length})</h3>
+                <div style="margin-top: 15px;">
+            `;
+
+            orders.forEach((order, index) => {
+              const statusText = order.status === 'pending' ? '準備中' :
+                               order.status === 'completed' ? '已完成' :
+                               order.status === 'cancelled' ? '已取消' : order.status;
+
+              const statusColor = order.status === 'pending' ? '#ff6b35' :
+                                order.status === 'completed' ? '#28a745' :
+                                order.status === 'cancelled' ? '#dc3545' : '#6c757d';
+
+              orderHtml += `
+                <div style="
+                  border: 1px solid #e0e0e0;
+                  border-radius: 8px;
+                  padding: 16px;
+                  margin-bottom: 12px;
+                  background: #fafafa;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                ">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <strong style="color: #333; font-size: 16px;">訂單 #${order.id}</strong>
+                    <span style="
+                      background: ${statusColor};
+                      color: white;
+                      padding: 6px 12px;
+                      border-radius: 4px;
+                      font-size: 12px;
+                      font-weight: 500;
+                    ">${statusText}</span>
+                  </div>
+                  <div style="color: #666; font-size: 14px; line-height: 1.5;">
+                    <div style="margin-bottom: 4px;"><strong>總金額:</strong> $${order.total}</div>
+                    <div><strong>下單時間:</strong> ${new Date(order.createdAt).toLocaleString('zh-TW')}</div>
+                  </div>
+                </div>
+              `;
+            });
+
+            orderHtml += `
+                </div>
+                <button onclick="window.location.reload()" style="
+                  background: #ff6b35;
+                  color: white;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 6px;
+                  width: 100%;
+                  cursor: pointer;
+                  margin-top: 15px;
+                  font-size: 14px;
+                  font-weight: 500;
+                ">重新整理</button>
+              </div>
+            `;
+          }
+
+          // Update modal content
+          modalContent.innerHTML = orderHtml;
+          console.log('✅ Modal content updated successfully with', orders.length, 'orders');
+          return true;
+        }
+
+        // Main fix function
+        async function fixOrderTracking() {
+          console.log('🔧 Fixing order tracking...');
+
+          try {
+            const orders = await fetchOrdersWithCorrectSession();
+            const success = updateOrderTrackingModal(orders);
+            if (success) {
+              console.log('✅ Order tracking fixed successfully');
+            } else {
+              console.warn('⚠️ Order tracking fix partially successful - modal not found');
+            }
+          } catch (error) {
+            console.error('❌ Error fixing order tracking:', error);
+          }
+        }
+
+        // Override console.log to detect when OrderTrackingModal is opened
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+          const message = args.join(' ');
+          if (message.includes('OrderTrackingModal opened with sessionId:')) {
+            console.log('🔧 Detected OrderTrackingModal opening, applying fix...');
+            setTimeout(fixOrderTracking, 50);
+          }
+          return originalConsoleLog.apply(console, args);
+        };
+
+        // Watch for DOM changes that might indicate modal opening
+        const observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+              mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) {
+                  if (node.textContent && (
+                    node.textContent.includes('目前沒有訂單') ||
+                    node.textContent.includes('桌號') ||
+                    node.textContent.includes('訂單')
+                  )) {
+                    console.log('🔍 Order tracking content detected, applying fix...');
+                    setTimeout(fixOrderTracking, 50);
+                  }
+                }
+              });
+            }
+          });
+        });
+
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+
+        // Listen for clicks on order tracking buttons
+        document.addEventListener('click', function(event) {
+          const target = event.target;
+          if (target.textContent && (
+            target.textContent.includes('訂單') ||
+            target.textContent.includes('追蹤') ||
+            target.textContent.includes('track') ||
+            target.textContent.includes('order')
+          )) {
+            console.log('🔍 Order tracking button clicked, applying fix...');
+            setTimeout(fixOrderTracking, 100);
+          }
+        });
+
+        // Expose functions globally for testing
+        window.fixOrderTracking = fixOrderTracking;
+        window.getCorrectSessionId = getCorrectSessionId;
+
+        console.log('✅ Order Tracking Fix loaded successfully (Inline - CSP Fixed)');
+        console.log('💡 You can manually trigger the fix by calling: window.fixOrderTracking()');
+        console.log('💡 You can check session ID by calling: window.getCorrectSessionId()');
+
+        // Try to fix immediately if there's already a modal open
+        setTimeout(fixOrderTracking, 1000);
+
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>

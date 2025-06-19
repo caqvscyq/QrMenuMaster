@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Session Issue</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Session ID Debug Tool</h1>
+    <p>This tool helps diagnose and fix session ID issues.</p>
+    
+    <div class="section">
+        <h3>Current Environment</h3>
+        <p><strong>URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>Table Parameter:</strong> <span id="tableParam"></span></p>
+        <p><strong>Current Session ID:</strong> <span id="currentSessionId"></span></p>
+        <p><strong>Session Format Valid:</strong> <span id="sessionValid"></span></p>
+    </div>
+    
+    <div class="section">
+        <h3>🧹 Fix Actions</h3>
+        <button onclick="clearAllSessions()">Clear All Sessions</button>
+        <button onclick="generateNewSession()">Generate New Session</button>
+        <button onclick="testCartAPI()">Test Cart API</button>
+        <button onclick="showAllLocalStorage()">Show All LocalStorage</button>
+    </div>
+    
+    <div class="section">
+        <h3>📋 LocalStorage Contents</h3>
+        <div id="localStorageContents"></div>
+    </div>
+    
+    <div class="section">
+        <h3>🧪 Test Results</h3>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        // Generate a table-specific session ID (FIXED VERSION)
+        function generateSessionIdFixed() {
+            // Get table number from URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'unknown';
+
+            // Validate table number format to prevent injection
+            const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+            
+            const sessionKey = `cart-session-id-${validTableNumber}`;
+            let sessionId = localStorage.getItem(sessionKey);
+            
+            // Validate existing session ID format and clear if invalid
+            if (sessionId && !/^session-[A-Za-z0-9_-]+-\d{13}-[A-Za-z0-9]{6,15}$/.test(sessionId)) {
+                console.log(`Clearing invalid session ID for table ${validTableNumber}:`, sessionId);
+                localStorage.removeItem(sessionKey);
+                localStorage.removeItem(`session-debug-${validTableNumber}`);
+                sessionId = null;
+            }
+            
+            if (!sessionId) {
+                // Generate a more robust session ID with table validation
+                const timestamp = Date.now();
+                // Ensure random part is exactly 9 characters
+                let randomPart = Math.random().toString(36).substr(2);
+                while (randomPart.length < 9) {
+                    randomPart += Math.random().toString(36).substr(2);
+                }
+                randomPart = randomPart.substr(0, 9); // Trim to exactly 9 characters
+                
+                sessionId = `session-${validTableNumber}-${timestamp}-${randomPart}`;
+                
+                // Store the session ID
+                localStorage.setItem(sessionKey, sessionId);
+                
+                // Also store a mapping for debugging
+                const debugKey = `session-debug-${validTableNumber}`;
+                localStorage.setItem(debugKey, JSON.stringify({
+                    tableNumber: validTableNumber,
+                    sessionId,
+                    createdAt: new Date().toISOString()
+                }));
+                
+                console.log(`Created new session for table ${validTableNumber}:`, sessionId);
+            } else {
+                console.log(`Using existing session for table ${validTableNumber}:`, sessionId);
+            }
+            
+            return sessionId;
+        }
+
+        function getCurrentSessionId() {
+            // Check for old format session
+            const oldSession = localStorage.getItem('cart-session-id');
+            if (oldSession) {
+                return oldSession;
+            }
+            
+            // Check for new format session
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'unknown';
+            const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+            const sessionKey = `cart-session-id-${validTableNumber}`;
+            return localStorage.getItem(sessionKey) || 'None';
+        }
+
+        function validateSessionFormat(sessionId) {
+            if (!sessionId || sessionId === 'None') return false;
+            return /^session-[A-Za-z0-9_-]+-\d{13}-[A-Za-z0-9]{6,15}$/.test(sessionId);
+        }
+
+        function clearAllSessions() {
+            // Clear old format
+            localStorage.removeItem('cart-session-id');
+            
+            // Clear new format for all possible tables
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('cart-session-id-') || key.startsWith('session-debug-')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            addResult('✅ All sessions cleared', 'success');
+            updateDisplay();
+        }
+
+        function generateNewSession() {
+            const newSessionId = generateSessionIdFixed();
+            addResult(`✅ New session generated: ${newSessionId}`, 'success');
+            updateDisplay();
+        }
+
+        async function testCartAPI() {
+            addResult('🧪 Testing cart API...', 'info');
+            
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const tableNumber = params.get('table') || 'unknown';
+                const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+                const sessionId = generateSessionIdFixed();
+
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (sessionId && sessionId.includes(`session-${validTableNumber}-`)) {
+                    headers['X-Session-ID'] = sessionId;
+                    headers['X-Table-Number'] = validTableNumber;
+                } else {
+                    addResult('❌ Invalid session ID for API call', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/customer/cart', {
+                    method: 'GET',
+                    headers
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Cart API successful: ${data.length} items`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Cart API failed: ${response.status} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Cart API error: ${error.message}`, 'error');
+            }
+        }
+
+        function showAllLocalStorage() {
+            const contents = document.getElementById('localStorageContents');
+            contents.innerHTML = '';
+            
+            if (localStorage.length === 0) {
+                contents.innerHTML = '<p>LocalStorage is empty</p>';
+                return;
+            }
+            
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                const div = document.createElement('div');
+                div.innerHTML = `<strong>${key}:</strong> ${value}`;
+                contents.appendChild(div);
+            });
+        }
+
+        function addResult(message, type) {
+            const resultsDiv = document.getElementById('testResults');
+            const resultElement = document.createElement('div');
+            resultElement.className = `section ${type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : ''}`;
+            resultElement.innerHTML = `<p>${message}</p><small>${new Date().toLocaleTimeString()}</small>`;
+            resultsDiv.appendChild(resultElement);
+        }
+
+        function updateDisplay() {
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'Not specified';
+            const currentSessionId = getCurrentSessionId();
+            const isValid = validateSessionFormat(currentSessionId);
+            
+            document.getElementById('currentUrl').textContent = window.location.href;
+            document.getElementById('tableParam').textContent = tableNumber;
+            document.getElementById('currentSessionId').textContent = currentSessionId;
+            document.getElementById('sessionValid').textContent = isValid ? '✅ Valid' : '❌ Invalid';
+            document.getElementById('sessionValid').className = isValid ? 'success' : 'error';
+            
+            showAllLocalStorage();
+            
+            // Show diagnostic info
+            if (!isValid && currentSessionId !== 'None') {
+                addResult(`⚠️ Invalid session format detected: ${currentSessionId}`, 'warning');
+                addResult('💡 Click "Clear All Sessions" then "Generate New Session" to fix', 'info');
+            }
+        }
+
+        // Initialize display
+        updateDisplay();
+        
+        // Show instructions
+        addResult('🔧 Session ID Debug Tool loaded', 'info');
+        addResult('📝 Instructions: 1) Check current session format 2) Clear old sessions 3) Generate new session 4) Test API', 'info');
+    </script>
+</body>
+</html>

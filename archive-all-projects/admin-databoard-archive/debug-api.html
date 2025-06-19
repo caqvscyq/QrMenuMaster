@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug API</title>
+</head>
+<body>
+    <h1>API Debug Tool</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Test 1: Check if we can get menu items without auth
+                results.innerHTML += '<h3>Test 1: GET /api/admin/menu-items (no auth)</h3>';
+                const response1 = await fetch('/api/admin/menu-items');
+                results.innerHTML += `Status: ${response1.status}<br>`;
+                const text1 = await response1.text();
+                results.innerHTML += `Response: ${text1.substring(0, 200)}...<br><br>`;
+                
+                // Test 2: Check auth endpoint
+                results.innerHTML += '<h3>Test 2: POST /api/admin/auth/login</h3>';
+                const loginResponse = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' })
+                });
+                results.innerHTML += `Login Status: ${loginResponse.status}<br>`;
+                const loginData = await loginResponse.json();
+                results.innerHTML += `Login Response: ${JSON.stringify(loginData)}<br><br>`;
+                
+                if (loginData.token) {
+                    // Test 3: Check menu items with auth
+                    results.innerHTML += '<h3>Test 3: GET /api/admin/menu-items (with auth)</h3>';
+                    const response3 = await fetch('/api/admin/menu-items', {
+                        headers: { 'Authorization': `Bearer ${loginData.token}` }
+                    });
+                    results.innerHTML += `Authenticated Status: ${response3.status}<br>`;
+                    const data3 = await response3.json();
+                    results.innerHTML += `Menu Items: ${JSON.stringify(data3, null, 2)}<br><br>`;
+                }
+                
+                // Test 4: Check categories
+                results.innerHTML += '<h3>Test 4: GET /api/admin/categories</h3>';
+                const response4 = await fetch('/api/admin/categories');
+                results.innerHTML += `Categories Status: ${response4.status}<br>`;
+                const data4 = await response4.json();
+                results.innerHTML += `Categories: ${JSON.stringify(data4, null, 2)}<br><br>`;
+                
+            } catch (error) {
+                results.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Run tests when page loads
+        testAPI();
+    </script>
+</body>
+</html> 

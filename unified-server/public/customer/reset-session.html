@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resetting Session - QR Menu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .manual-link {
+            margin-top: 30px;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            border-radius: 10px;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        .manual-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Resetting Session</h1>
+        <div class="spinner"></div>
+        <div id="status" class="status">Clearing old session data...</div>
+        <div id="details"></div>
+        <a href="/?table=A1" class="manual-link" id="manualLink" style="display: none;">
+            🏠 Continue to Menu (Table A1)
+        </a>
+    </div>
+
+    <script>
+        let step = 0;
+        const steps = [
+            'Clearing old session data...',
+            'Removing cached cart information...',
+            'Generating new session format...',
+            'Preparing table-specific session...',
+            'Session reset complete!'
+        ];
+
+        function updateStatus() {
+            const statusEl = document.getElementById('status');
+            const detailsEl = document.getElementById('details');
+            
+            if (step < steps.length - 1) {
+                statusEl.textContent = steps[step];
+                step++;
+                setTimeout(updateStatus, 800);
+            } else {
+                // Final step - clear storage and redirect
+                clearStorageAndRedirect();
+            }
+        }
+
+        function clearStorageAndRedirect() {
+            const statusEl = document.getElementById('status');
+            const detailsEl = document.getElementById('details');
+            const manualLink = document.getElementById('manualLink');
+            
+            try {
+                // Clear all storage
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                // Clear any cookies related to sessions
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                statusEl.textContent = '✅ Session reset complete!';
+                statusEl.className = 'status success';
+                
+                detailsEl.innerHTML = `
+                    <p>✅ localStorage cleared</p>
+                    <p>✅ sessionStorage cleared</p>
+                    <p>✅ Cookies cleared</p>
+                    <p>🔄 Redirecting to menu...</p>
+                `;
+                
+                // Show manual link as backup
+                manualLink.style.display = 'inline-block';
+                
+                // Auto-redirect after 3 seconds
+                setTimeout(() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const table = urlParams.get('table') || 'A1';
+                    window.location.href = `/?table=${table}`;
+                }, 3000);
+                
+            } catch (error) {
+                statusEl.textContent = '❌ Error resetting session';
+                statusEl.className = 'status error';
+                detailsEl.innerHTML = `
+                    <p>Error: ${error.message}</p>
+                    <p>Please try manually clearing your browser data or use an incognito window.</p>
+                `;
+                manualLink.style.display = 'inline-block';
+            }
+        }
+
+        // Start the process
+        setTimeout(updateStatus, 500);
+    </script>
+</body>
+</html>

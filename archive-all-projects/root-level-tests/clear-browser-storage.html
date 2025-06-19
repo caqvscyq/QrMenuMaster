@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Browser Storage - QR Menu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        .danger { background-color: #dc3545; }
+        .danger:hover { background-color: #c82333; }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear Browser Storage - QR Menu</h1>
+        <p>This tool will help clear old session data and test the cart functionality with proper session IDs.</p>
+        
+        <div class="section">
+            <h3>📊 Current Storage Status</h3>
+            <div id="storageStatus"></div>
+            <button onclick="checkStorage()">🔍 Check Storage</button>
+        </div>
+        
+        <div class="section">
+            <h3>🗑️ Clear Storage</h3>
+            <p>Clear all old session data to force generation of new, properly formatted session IDs.</p>
+            <button onclick="clearAllStorage()" class="danger">🗑️ Clear All Storage</button>
+            <button onclick="clearSessionData()">🧹 Clear Session Data Only</button>
+            <div id="clearResults"></div>
+        </div>
+        
+        <div class="section">
+            <h3>🆕 Generate New Session</h3>
+            <p>Generate a new session ID with the correct format for table A1.</p>
+            <button onclick="generateNewSession()">🆕 Generate New Session for Table A1</button>
+            <div id="sessionResults"></div>
+        </div>
+        
+        <div class="section">
+            <h3>🧪 Test Cart Functionality</h3>
+            <p>Test adding items to cart with the new session format.</p>
+            <button onclick="testCartFunctionality()">🛒 Test Add to Cart</button>
+            <div id="cartResults"></div>
+        </div>
+        
+        <div class="section">
+            <h3>🔗 Quick Actions</h3>
+            <button onclick="redirectToApp()">🏠 Go to App (Table A1)</button>
+            <button onclick="openDevTools()">🔧 Open Developer Tools</button>
+        </div>
+    </div>
+
+    <script>
+        // Check current storage status
+        function checkStorage() {
+            const results = [];
+            
+            // Check localStorage
+            results.push('<h4>📦 localStorage:</h4>');
+            if (localStorage.length === 0) {
+                results.push('<p>✅ localStorage is empty</p>');
+            } else {
+                results.push('<ul>');
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    results.push(`<li><strong>${key}:</strong> ${value}</li>`);
+                }
+                results.push('</ul>');
+            }
+            
+            // Check sessionStorage
+            results.push('<h4>🗂️ sessionStorage:</h4>');
+            if (sessionStorage.length === 0) {
+                results.push('<p>✅ sessionStorage is empty</p>');
+            } else {
+                results.push('<ul>');
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    const value = sessionStorage.getItem(key);
+                    results.push(`<li><strong>${key}:</strong> ${value}</li>`);
+                }
+                results.push('</ul>');
+            }
+            
+            // Check URL parameters
+            const params = new URLSearchParams(window.location.search);
+            results.push('<h4>🔗 URL Parameters:</h4>');
+            if (params.toString() === '') {
+                results.push('<p>⚠️ No URL parameters found</p>');
+            } else {
+                results.push('<ul>');
+                for (const [key, value] of params) {
+                    results.push(`<li><strong>${key}:</strong> ${value}</li>`);
+                }
+                results.push('</ul>');
+            }
+            
+            document.getElementById('storageStatus').innerHTML = results.join('');
+        }
+        
+        // Clear all storage
+        function clearAllStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.getElementById('clearResults').innerHTML = 
+                '<div class="success">✅ All storage cleared successfully!</div>';
+            checkStorage();
+        }
+        
+        // Clear only session-related data
+        function clearSessionData() {
+            const keysToRemove = [];
+            
+            // Find session-related keys
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('session') || key.includes('cart'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // Remove session keys
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            document.getElementById('clearResults').innerHTML = 
+                `<div class="success">✅ Cleared ${keysToRemove.length} session-related keys: ${keysToRemove.join(', ')}</div>`;
+            checkStorage();
+        }
+        
+        // Generate new session with correct format
+        function generateNewSession() {
+            const tableNumber = 'A1';
+            const timestamp = Date.now();
+            
+            // Generate exactly 9 character random part
+            let randomPart = Math.random().toString(36).substr(2);
+            while (randomPart.length < 9) {
+                randomPart += Math.random().toString(36).substr(2);
+            }
+            randomPart = randomPart.substr(0, 9);
+            
+            const sessionId = `session-${tableNumber}-${timestamp}-${randomPart}`;
+            const sessionKey = `cart-session-id-${tableNumber}`;
+            
+            // Store the new session
+            localStorage.setItem(sessionKey, sessionId);
+            
+            // Store debug info
+            const debugKey = `session-debug-${tableNumber}`;
+            localStorage.setItem(debugKey, JSON.stringify({
+                tableNumber,
+                sessionId,
+                createdAt: new Date().toISOString()
+            }));
+            
+            document.getElementById('sessionResults').innerHTML = 
+                `<div class="success">
+                    ✅ Generated new session for table ${tableNumber}:<br>
+                    <strong>Session ID:</strong> ${sessionId}<br>
+                    <strong>Storage Key:</strong> ${sessionKey}
+                </div>`;
+            checkStorage();
+        }
+        
+        // Test cart functionality
+        async function testCartFunctionality() {
+            const tableNumber = 'A1';
+            const sessionKey = `cart-session-id-${tableNumber}`;
+            const sessionId = localStorage.getItem(sessionKey);
+            
+            if (!sessionId) {
+                document.getElementById('cartResults').innerHTML = 
+                    '<div class="error">❌ No session ID found. Generate a new session first.</div>';
+                return;
+            }
+            
+            try {
+                // Test adding item to cart
+                const response = await fetch('/api/cart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': sessionId,
+                        'X-Table-Number': tableNumber
+                    },
+                    body: JSON.stringify({
+                        menuItemId: 1,
+                        quantity: 1
+                    })
+                });
+                
+                const result = await response.text();
+                
+                if (response.ok) {
+                    document.getElementById('cartResults').innerHTML = 
+                        `<div class="success">
+                            ✅ Cart test successful!<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Response:</strong> <pre>${result}</pre>
+                        </div>`;
+                } else {
+                    document.getElementById('cartResults').innerHTML = 
+                        `<div class="error">
+                            ❌ Cart test failed!<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Response:</strong> <pre>${result}</pre>
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('cartResults').innerHTML = 
+                    `<div class="error">❌ Error testing cart: ${error.message}</div>`;
+            }
+        }
+        
+        // Redirect to main app
+        function redirectToApp() {
+            window.location.href = '/?table=A1';
+        }
+        
+        // Open developer tools instruction
+        function openDevTools() {
+            alert('Press F12 or Ctrl+Shift+I (Windows/Linux) or Cmd+Option+I (Mac) to open Developer Tools.\n\nThen go to:\n- Application tab → Storage → Local Storage\n- Network tab to monitor requests');
+        }
+        
+        // Auto-check storage on page load
+        window.onload = function() {
+            checkStorage();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Browser Headers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cart Functionality Test</h1>
+    <p>This page tests the cart functionality with real browser conditions.</p>
+    
+    <div class="test-section">
+        <h3>Current Environment</h3>
+        <p><strong>URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>Table Number:</strong> <span id="tableNumber"></span></p>
+        <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Actions</h3>
+        <button onclick="testCartRetrieval()">Test Cart Retrieval</button>
+        <button onclick="testAddToCart()">Test Add to Cart</button>
+        <button onclick="testCreateOrder()">Test Create Order</button>
+        <button onclick="clearSession()">Clear Session</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        // Generate a table-specific session ID for cart management
+        function getSessionId() {
+            // Get table number from URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'unknown';
+
+            // Validate table number format to prevent injection
+            const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+            
+            const sessionKey = `cart-session-id-${validTableNumber}`;
+            let sessionId = localStorage.getItem(sessionKey);
+            
+            // Validate existing session ID format and clear if invalid
+            if (sessionId && !/^session-[A-Za-z0-9_-]+-\d{13}-[A-Za-z0-9]{6,15}$/.test(sessionId)) {
+                console.log(`Clearing invalid session ID for table ${validTableNumber}:`, sessionId);
+                localStorage.removeItem(sessionKey);
+                localStorage.removeItem(`session-debug-${validTableNumber}`);
+                sessionId = null;
+            }
+            
+            if (!sessionId) {
+                // Generate a more robust session ID with table validation
+                const timestamp = Date.now();
+                // Ensure random part is exactly 9 characters
+                let randomPart = Math.random().toString(36).substr(2);
+                while (randomPart.length < 9) {
+                    randomPart += Math.random().toString(36).substr(2);
+                }
+                randomPart = randomPart.substr(0, 9); // Trim to exactly 9 characters
+                
+                sessionId = `session-${validTableNumber}-${timestamp}-${randomPart}`;
+                
+                // Store the session ID
+                localStorage.setItem(sessionKey, sessionId);
+                
+                // Also store a mapping for debugging
+                const debugKey = `session-debug-${validTableNumber}`;
+                localStorage.setItem(debugKey, JSON.stringify({
+                    tableNumber: validTableNumber,
+                    sessionId,
+                    createdAt: new Date().toISOString()
+                }));
+                
+                console.log(`Created new session for table ${validTableNumber}:`, sessionId);
+            } else {
+                console.log(`Using existing session for table ${validTableNumber}:`, sessionId);
+            }
+            
+            return sessionId;
+        }
+
+        // API request function
+        async function apiRequest(method, url, data) {
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'unknown';
+            const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+            const sessionId = getSessionId();
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            // Only add session ID if it's valid and belongs to this table
+            if (sessionId && sessionId.includes(`session-${validTableNumber}-`)) {
+                headers['X-Session-ID'] = sessionId;
+                headers['X-Table-Number'] = validTableNumber;
+            } else if (sessionId) {
+                console.warn(`Invalid session ID for table ${validTableNumber}:`, sessionId);
+            }
+
+            const options = {
+                method,
+                headers
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            console.log('Making API request:', {
+                method,
+                url,
+                headers,
+                data
+            });
+
+            const response = await fetch(url, options);
+            return response;
+        }
+
+        // Test functions
+        async function testCartRetrieval() {
+            addResult('Testing cart retrieval...', 'info');
+            try {
+                const response = await apiRequest('GET', '/api/customer/cart');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Cart retrieval successful: ${data.length} items`, 'success');
+                    console.log('Cart data:', data);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Cart retrieval failed: ${response.status} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Cart retrieval error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAddToCart() {
+            addResult('Testing add to cart...', 'info');
+            try {
+                const response = await apiRequest('POST', '/api/customer/cart', {
+                    menuItemId: 1,
+                    quantity: 1
+                });
+                if (response.ok) {
+                    addResult('✅ Add to cart successful', 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Add to cart failed: ${response.status} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Add to cart error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateOrder() {
+            addResult('Testing order creation...', 'info');
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const tableNumber = params.get('table') || 'unknown';
+                const sessionId = getSessionId();
+                
+                const response = await apiRequest('POST', '/api/customer/orders', {
+                    order: {
+                        sessionId,
+                        tableNumber,
+                        subtotal: 10.00,
+                        serviceFee: 1.00,
+                        total: 11.00,
+                        customerName: 'Test Customer'
+                    },
+                    items: [{
+                        menuItemId: 1,
+                        quantity: 1,
+                        price: 10.00,
+                        itemName: 'Test Item'
+                    }]
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Order creation successful: #${data.id}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult(`❌ Order creation failed: ${response.status} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Order creation error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearSession() {
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'unknown';
+            const validTableNumber = /^[A-Za-z0-9_-]+$/.test(tableNumber) ? tableNumber : 'unknown';
+            
+            localStorage.removeItem(`cart-session-id-${validTableNumber}`);
+            localStorage.removeItem(`session-debug-${validTableNumber}`);
+            
+            addResult('✅ Session cleared', 'success');
+            updateDisplay();
+        }
+
+        function addResult(message, type) {
+            const resultsDiv = document.getElementById('testResults');
+            const resultElement = document.createElement('div');
+            resultElement.className = `test-section ${type === 'success' ? 'success' : type === 'error' ? 'error' : ''}`;
+            resultElement.innerHTML = `<p>${message}</p><small>${new Date().toLocaleTimeString()}</small>`;
+            resultsDiv.appendChild(resultElement);
+        }
+
+        function updateDisplay() {
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'unknown';
+            const sessionId = getSessionId();
+            
+            document.getElementById('currentUrl').textContent = window.location.href;
+            document.getElementById('tableNumber').textContent = tableNumber;
+            document.getElementById('sessionId').textContent = sessionId;
+        }
+
+        // Initialize display
+        updateDisplay();
+    </script>
+</body>
+</html>
