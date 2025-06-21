@@ -52,16 +52,31 @@ npm install
 
 ### Running the Application
 
-#### Option 1: Using PowerShell Scripts (Windows)
-```bash
-# Start the unified server
-./start-server.ps1
+#### Option 1: Enhanced PowerShell Scripts (Windows) - Recommended
+```powershell
+# Normal development (preserves existing data)
+.\start-dev-with-options.ps1
+
+# Development with fresh database (DESTRUCTIVE)
+.\start-dev-with-options.ps1 -Reset
+
+# Show all options
+.\start-dev-with-options.ps1 -Help
 ```
 
-#### Option 2: Manual Start
+#### Option 2: Legacy PowerShell Scripts
+```powershell
+# Updated to preserve data
+.\start-dev.ps1
+
+# Unified server only
+.\start-all.ps1
+```
+
+#### Option 3: Manual Start
 ```bash
 cd unified-server
-npm run dev
+npm run dev  # Now preserves existing data!
 ```
 
 ## 🌐 Access Points
@@ -72,15 +87,49 @@ npm run dev
 
 ## 📊 Database Setup
 
-The project uses SQLite with Drizzle ORM. Database migrations and schema are located in `unified-server/migrations/`.
+The project uses PostgreSQL with Drizzle ORM. Database migrations and schema are located in `unified-server/migrations/`.
 
-### Initialize Database:
+### Smart Database Initialization (Preserves Data):
 ```bash
+# Normal development start (preserves existing data)
+npm run dev
+
+# Or from unified-server directory
 cd unified-server
-npm run db:generate
-npm run db:migrate
-npm run seed
+npm run dev
 ```
+
+### Database Management Commands:
+```bash
+# Check database status
+npm run db:status
+
+# Smart seed (only if database is empty)
+npm run seed
+
+# Force reseed (DESTRUCTIVE - clears all data)
+npm run seed:force
+
+# Complete database reset (DESTRUCTIVE)
+npm run db:reset
+
+# Initialize schema only
+npm run db:init
+```
+
+### Enhanced Development Scripts:
+```powershell
+# Windows PowerShell - Normal start (preserves data)
+.\start-dev-with-options.ps1
+
+# Start with database reset (DESTRUCTIVE)
+.\start-dev-with-options.ps1 -Reset
+
+# Show all options
+.\start-dev-with-options.ps1 -Help
+```
+
+> **📖 For detailed database management guide, see [DATABASE_MANAGEMENT.md](DATABASE_MANAGEMENT.md)**
 
 ## 🔧 Configuration
 

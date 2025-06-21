@@ -1,0 +1,37 @@
+{
+  "name": "qr-menu-master",
+  "version": "1.0.0",
+  "description": "QR Menu Master - Unified Restaurant Ordering System",
+  "private": true,
+  "scripts": {
+    "dev": "cd unified-server && npm run dev",
+    "build": "cd unified-server && npm run build",
+    "start": "cd unified-server && npm start",
+    "install:all": "npm install && cd unified-server && npm install",
+    "clean": "cd unified-server && rm -rf node_modules dist",
+    "seed": "cd unified-server && npm run seed",
+    "seed:force": "cd unified-server && npm run seed:force",
+    "db:init": "cd unified-server && npm run db:init",
+    "db:reset": "cd unified-server && npm run db:reset",
+    "db:status": "cd unified-server && node db-manager.js status",
+    "test": "cd unified-server && npm run test"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "."
+  },
+  "keywords": [
+    "qr-menu",
+    "restaurant",
+    "ordering-system",
+    "unified-server",
+    "nodejs",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT"
+}

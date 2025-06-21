@@ -56,6 +56,7 @@ export const menuItems = pgTable("menu_items", {
   reviewCount: integer("review_count").notNull().default(0),
   isPopular: boolean("is_popular").notNull().default(false),
   isAvailable: boolean("is_available").notNull().default(true),
+  customizationOptions: json("customization_options").default('[]'), // Array of customization options
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -64,6 +65,9 @@ export const cartItems = pgTable("cart_items", {
   sessionId: text("session_id").notNull(),
   menuItemId: integer("menu_item_id").references(() => menuItems.id),
   quantity: integer("quantity").notNull().default(1),
+  customizations: json("customizations").default('{}'), // Selected customizations
+  specialInstructions: text("special_instructions"), // Additional notes
+  customizationCost: decimal("customization_cost", { precision: 10, scale: 2 }).default("0.00"), // Total cost of customizations
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -92,6 +96,8 @@ export const orderItems = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   itemName: text("item_name").notNull(),
+  customizations: json("customizations").default('{}'), // Selected customizations
+  specialInstructions: text("special_instructions"), // Additional notes
   createdAt: timestamp("created_at").defaultNow(),
 });
 

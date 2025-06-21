@@ -74,11 +74,11 @@ function Start-UnifiedServer {
     Write-Host "Admin UI: http://localhost:5000/admin/" -ForegroundColor Gray
     Write-Host "Customer UI: http://localhost:5000/?table=A1" -ForegroundColor Gray
     Write-Host ""
-    
+
     if (-not (Stop-ExistingServers)) {
         return
     }
-    
+
     Set-Location "unified-server"
     npm start
 }
@@ -88,33 +88,29 @@ function Start-AdminDataboard {
     Write-Host "Port: 5173 (Vite dev server)" -ForegroundColor Gray
     Write-Host "Admin UI: http://localhost:5173" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "⚠️  WARNING: This is for development only!" -ForegroundColor Red
-    Write-Host "⚠️  Database seeding may conflict with unified-server!" -ForegroundColor Red
+    Write-Host "⚠️  WARNING: Admin_databoard has been archived!" -ForegroundColor Red
+    Write-Host "⚠️  It is now located in _archive/Admin_databoard" -ForegroundColor Red
+    Write-Host "⚠️  Use the unified-server instead for admin functionality" -ForegroundColor Red
     Write-Host ""
-    
+
     if (-not (Stop-ExistingServers)) {
         return
     }
-    
-    Set-Location "Admin_databoard"
+
+    Set-Location "_archive\Admin_databoard"
     npm run dev
 }
 
 function Start-ClientQR {
-    Write-Host "🚀 Starting Client_QR..." -ForegroundColor Green
-    Write-Host "Port: 5174 (Vite dev server)" -ForegroundColor Gray
-    Write-Host "Customer UI: http://localhost:5174" -ForegroundColor Gray
+    Write-Host "🚀 Client_QR has been archived!" -ForegroundColor Red
+    Write-Host "⚠️  Client_QR is now located in _archive/Client_QR" -ForegroundColor Red
+    Write-Host "⚠️  The unified-server already includes the customer interface" -ForegroundColor Red
+    Write-Host "⚠️  Use the unified-server instead:" -ForegroundColor Red
+    Write-Host "     Customer UI: http://localhost:5000/" -ForegroundColor Yellow
+    Write-Host "     Admin UI: http://localhost:5000/admin/" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "⚠️  WARNING: This is for development only!" -ForegroundColor Red
-    Write-Host "⚠️  Database seeding may conflict with unified-server!" -ForegroundColor Red
-    Write-Host ""
-    
-    if (-not (Stop-ExistingServers)) {
-        return
-    }
-    
-    Set-Location "Client_QR"
-    npm run dev
+    Write-Host "To start the unified server, run:" -ForegroundColor Green
+    Write-Host ".\start-server.ps1 -Server unified" -ForegroundColor Green
 }
 
 # Main execution

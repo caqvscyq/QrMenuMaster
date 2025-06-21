@@ -13,8 +13,24 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Get all menu items (no auth required)
-router.get('/menu', cacheMiddleware('customer:menu', 600), async (req, res) => {
+// New feature endpoint (no auth required)
+router.get('/new-feature', async (req, res) => {
+  try {
+    // Your new feature logic here
+    const data = {
+      message: 'This is your new feature!',
+      timestamp: new Date().toISOString(),
+      features: ['Feature 1', 'Feature 2', 'Feature 3']
+    };
+    res.json(data);
+  } catch (error) {
+    logger.error('Error in new feature endpoint:', error);
+    res.status(500).json({ message: 'Failed to load new feature' });
+  }
+});
+
+// Get all menu items (no auth required) - Cache disabled for customization updates
+router.get('/menu', async (req, res) => {
   try {
     const shopId = parseInt(req.query.shopId as string) || 1;
     const items = await databaseStorage.getMenuItems(shopId);
@@ -120,46 +136,81 @@ router.get('/menu/:id/similar', async (req, res) => {
 });
 
 // Apply customer authentication middleware to all routes below (cart and orders require auth)
-router.use(customerAuth);
+router.use(customerAuth as any);
 
 // Get cart items
 router.get('/cart', async (req, res) => {
+  const startTime = Date.now();
   try {
     const { sessionId } = req as any;
+    logger.info(`🔍 [CART LATENCY] Backend: Starting cart fetch for session: ${sessionId}`);
+
+    const dbStartTime = Date.now();
     const items = await databaseStorage.getCartItems(sessionId);
+    const dbEndTime = Date.now();
+
+    logger.info(`⏱️ [CART LATENCY] Backend: Database query took: ${dbEndTime - dbStartTime}ms`);
+    logger.info(`📦 [CART LATENCY] Backend: Returning ${items.length} cart items`);
+
     res.json(items);
+
+    const totalTime = Date.now() - startTime;
+    logger.info(`✅ [CART LATENCY] Backend: Cart fetch completed in: ${totalTime}ms`);
   } catch (error) {
-    logger.error('Error fetching cart items:', error);
+    logger.error('❌ [CART LATENCY] Backend: Error fetching cart items:', error);
     res.status(500).json({ message: 'Failed to fetch cart items' });
   }
 });
 
 // Add item to cart
 router.post('/cart', async (req, res) => {
+  const startTime = Date.now();
   try {
     const { sessionId } = req as any;
-    const { menuItemId, quantity } = req.body;
-    
+    const { menuItemId, quantity, customizations, specialInstructions } = req.body;
+
+    logger.info(`🚀 [CART LATENCY] Backend: Starting add to cart for session: ${sessionId}, item: ${menuItemId}`);
+
     try {
+      const validationStartTime = Date.now();
       const validatedData = insertCartItemSchema.parse({
         sessionId,
         menuItemId,
-        quantity: quantity || 1
+        quantity: quantity || 1,
+        customizations: customizations || {},
+        specialInstructions: specialInstructions || null
       });
-      
+      const validationEndTime = Date.now();
+
+      logger.info(`⚡ [CART LATENCY] Backend: Validation took: ${validationEndTime - validationStartTime}ms`);
+
+      const addStartTime = Date.now();
       await databaseStorage.addToCart(validatedData);
-      
+      const addEndTime = Date.now();
+
+      logger.info(`💾 [CART LATENCY] Backend: Add to cart DB operation took: ${addEndTime - addStartTime}ms`);
+
       // Return the full cart
+      const fetchStartTime = Date.now();
       const items = await databaseStorage.getCartItems(sessionId);
+      const fetchEndTime = Date.now();
+
+      logger.info(`📡 [CART LATENCY] Backend: Cart refetch took: ${fetchEndTime - fetchStartTime}ms`);
+      logger.info(`📦 [CART LATENCY] Backend: Returning ${items.length} cart items`);
+
       res.json(items);
+
+      const totalTime = Date.now() - startTime;
+      logger.info(`✅ [CART LATENCY] Backend: Add to cart completed in: ${totalTime}ms`);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        logger.error('❌ [CART LATENCY] Backend: Validation error:', error.errors);
         return res.status(400).json({ message: 'Invalid cart data', errors: error.errors });
       }
       throw error;
     }
   } catch (error) {
-    logger.error('Error adding to cart:', error);
+    logger.error('❌ [CART LATENCY] Backend: Error adding to cart:', error);
     res.status(400).json({ message: 'Failed to add item to cart' });
   }
 });

@@ -43,31 +43,19 @@ if (-not (Test-PostgreSQL)) {
     exit 1
 }
 
-# Check if the database exists and reset it
-Write-Host "Resetting and seeding the database..." -ForegroundColor Cyan
-Set-Location -Path "$PSScriptRoot\unified-server"
-node reset-db.js
+# Database will be initialized automatically on server start (preserves existing data)
+Write-Host "Database will be initialized automatically (existing data preserved)..." -ForegroundColor Cyan
+Write-Host "To force database reset, run: cd unified-server && node db-manager.js reset" -ForegroundColor Yellow
 
-# Start the unified server
+# Start the unified server (contains both admin and customer interfaces)
 Write-Host "Starting unified server..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\unified-server'; npm run dev"
 
-# Wait for the server to start
-Write-Host "Waiting for server to initialize (10 seconds)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 10
-
-# Start the Admin Dashboard frontend
-Write-Host "Starting Admin Dashboard..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\Admin_databoard'; npm run dev"
-
-# Start the Client QR frontend
-Write-Host "Starting Client QR frontend..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\Client_QR'; npm run dev"
-
-Write-Host "All components started!" -ForegroundColor Green
-Write-Host "Unified Server: http://localhost:5000" -ForegroundColor White
-Write-Host "Admin Dashboard: http://localhost:5173" -ForegroundColor White
-Write-Host "Client QR: http://localhost:5174" -ForegroundColor White
+Write-Host "Unified server started!" -ForegroundColor Green
+Write-Host "Customer Interface: http://localhost:5000" -ForegroundColor White
+Write-Host "Admin Interface: http://localhost:5000/admin" -ForegroundColor White
+Write-Host ""
+Write-Host "Note: Legacy projects archived to _archive/ directory" -ForegroundColor Yellow
 
 Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
 Write-Host "- If you encounter database connection issues, check that PostgreSQL is running" -ForegroundColor White

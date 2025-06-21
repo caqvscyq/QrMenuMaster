@@ -6,7 +6,7 @@ import { users } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 
 // Extended Request interface to include user and session properties
-export interface AuthRequest extends Request {
+export interface AuthRequest extends Omit<Request, 'session'> {
   user?: {
     id: number;
     username: string;

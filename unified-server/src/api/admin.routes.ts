@@ -354,4 +354,16 @@ router.post('/auth/logout', adminAuth, async (req, res) => {
   }
 });
 
+// Run migration endpoint
+router.post('/run-migration', async (req, res) => {
+  try {
+    logger.info('Admin: Running database migration');
+    await dbService.runMigration();
+    res.json({ message: 'Migration completed successfully' });
+  } catch (error) {
+    logger.error('Admin: Error running migration:', error);
+    res.status(500).json({ message: 'Failed to run migration' });
+  }
+});
+
 export default router;

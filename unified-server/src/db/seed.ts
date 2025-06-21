@@ -4,9 +4,32 @@ import { sql } from 'drizzle-orm';
 import * as schema from '../shared/schema';
 import bcrypt from 'bcrypt';
 
-export async function seed() {
+// Check if database has been initialized
+async function isDatabaseInitialized(): Promise<boolean> {
   try {
-    logger.info('Seeding database...');
+    // Check if shops table exists and has data
+    const shopsResult = await db.execute(sql`
+      SELECT COUNT(*) as count FROM information_schema.tables
+      WHERE table_name = 'shops' AND table_schema = 'public'
+    `);
+
+    if (shopsResult.rows[0].count === '0') {
+      return false;
+    }
+
+    // Check if shops table has data
+    const shopsData = await db.select().from(schema.shops).limit(1);
+    return shopsData.length > 0;
+  } catch (error) {
+    logger.debug('Database initialization check failed:', error);
+    return false;
+  }
+}
+
+// Initialize database schema without clearing data
+export async function initializeDatabase() {
+  try {
+    logger.info('Initializing database schema...');
 
     // Create sessions table if it doesn't exist
     await db.execute(sql`
@@ -28,8 +51,25 @@ export async function seed() {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_sessions_shop_id ON sessions(shop_id);`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity);`);
+
+    logger.info('Database schema initialized successfully!');
+  } catch (error) {
+    logger.error("Failed to initialize database schema:", error);
+    throw error;
+  }
+}
+
+// Seed database with initial data (destructive operation)
+export async function seedDatabase() {
+  try {
+    logger.info('Seeding database with initial data...');
+
+    // Initialize schema first
+    await initializeDatabase();
 
     // Clear existing data
+    logger.warn('Clearing existing data for fresh seed...');
     await db.execute(sql`DELETE FROM sessions;`);
     await db.delete(schema.orderItems);
     await db.delete(schema.orders);
@@ -233,6 +273,27 @@ export async function seed() {
     logger.info('Database seeded successfully!');
   } catch (error) {
     logger.error("Failed to seed database:", error);
+    throw error;
+  }
+}
+
+// Smart initialization - only seed if database is empty
+export async function seed() {
+  try {
+    const isInitialized = await isDatabaseInitialized();
+
+    if (!isInitialized) {
+      logger.info('Database not initialized. Running full seed...');
+      await seedDatabase();
+    } else {
+      logger.info('Database already initialized. Skipping seed to preserve data.');
+      logger.info('To force reseed, use: npm run seed:force');
+
+      // Still ensure schema is up to date
+      await initializeDatabase();
+    }
+  } catch (error) {
+    logger.error("Failed to initialize/seed database:", error);
     process.exit(1);
   }
-} 
+}

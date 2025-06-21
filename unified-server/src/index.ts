@@ -311,9 +311,8 @@ const startServer = async () => {
     }
     logger.info('Database connection successful!');
 
-    if (process.env.NODE_ENV === 'development') {
-      await seed();
-    }
+    // Always initialize database (smart initialization that preserves data)
+    await seed();
     
     // Initialize Redis
     try {

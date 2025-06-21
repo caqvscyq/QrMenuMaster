@@ -1,12 +1,13 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  UtensilsCrossed, 
-  ShoppingCart, 
-  Receipt, 
+import {
+  UtensilsCrossed,
+  ShoppingCart,
+  Receipt,
   User,
   Search,
   ArrowLeft
@@ -20,17 +21,18 @@ interface CustomerLayoutProps {
   showSearch?: boolean;
 }
 
-export default function CustomerLayout({ 
-  children, 
+export default function CustomerLayout({
+  children,
   title = "Afly Restaurant",
   showBackButton = false,
   showSearch = true
 }: CustomerLayoutProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { getTotalItems } = useCart();
 
-  // Get cart count (this would be from context in a real app)
-  const cartCount = 2; // Mock data
+  // Get actual cart count from cart hook
+  const cartCount = getTotalItems();
 
   const navigation = [
     { name: "Menu", href: "/menu", icon: UtensilsCrossed },

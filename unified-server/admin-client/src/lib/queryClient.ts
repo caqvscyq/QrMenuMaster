@@ -12,22 +12,49 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const token = localStorage.getItem("admin_token");
-  const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  
-  // Add cache control headers
-  headers["Cache-Control"] = "no-cache, no-store";
-  headers["Pragma"] = "no-cache";
+  // Get session information for authenticated requests
+  const getSessionHeaders = () => {
+    const headers: Record<string, string> = {};
+
+    // Add Content-Type for requests with data
+    if (data) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    // Get session ID from global variable (set by useSession hook)
+    const sessionId = (window as any).__currentSessionId;
+
+    if (sessionId) {
+      // Get table number from URL parameters as the primary source
+      const params = new URLSearchParams(window.location.search);
+      let tableNumber = params.get('table');
+
+      // If table number is not in URL, extract it from the session ID as a fallback
+      if (!tableNumber) {
+        // Session format: session-TABLE-timestamp-random
+        const parts = sessionId.split('-');
+        if (parts.length >= 2 && parts[0] === 'session') {
+          tableNumber = parts[1];
+        }
+      }
+
+      // Add session headers for authenticated endpoints
+      if (url.includes('/cart') || url.includes('/orders')) {
+        headers["X-Session-ID"] = sessionId;
+        if (tableNumber) {
+          headers["X-Table-Number"] = tableNumber;
+        }
+      }
+    }
+
+    return headers;
+  };
 
   const res = await fetch(url, {
     method,
-    headers,
+    headers: getSessionHeaders(),
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
-    cache: "no-store",
   });
 
   await throwIfResNotOk(res);
@@ -40,20 +67,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const token = localStorage.getItem("admin_token");
-    const headers: HeadersInit = {
-      "Cache-Control": "no-cache, no-store",
-      "Pragma": "no-cache"
-    };
-    
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    
     const res = await fetch(queryKey[0] as string, {
-      headers,
       credentials: "include",
-      cache: "no-store",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -69,10 +84,9 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: true,
-      staleTime: 5000,
-      retry: 1,
-      retryDelay: 1000,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      retry: false,
     },
     mutations: {
       retry: false,

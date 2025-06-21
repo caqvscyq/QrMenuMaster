@@ -17,6 +17,7 @@ import {
 import { eq, and, gte, like, or, desc, inArray, not, isNull, sql, SQL } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { cacheSet, cacheGet, cacheDelete } from '../config/redis';
+import { calculateCustomizationPrice, calculateItemTotalPrice } from '../utils/customization-calculator';
 
 export interface IStorage {
   // User methods
@@ -117,10 +118,45 @@ export class DatabaseStorage implements IStorage {
     return isValid;
   }
 
+  private async runCustomizationMigration() {
+    try {
+      logger.info('Running customization migration...');
+
+      // Add customization options to menu items
+      await db.execute(sql`
+        ALTER TABLE menu_items
+        ADD COLUMN IF NOT EXISTS customization_options JSON DEFAULT '[]'
+      `);
+
+      // Add customizations and special instructions to cart items
+      await db.execute(sql`
+        ALTER TABLE cart_items
+        ADD COLUMN IF NOT EXISTS customizations JSON DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS special_instructions TEXT
+      `);
+
+      // Add customizations and special instructions to order items
+      await db.execute(sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS customizations JSON DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS special_instructions TEXT
+      `);
+
+      logger.info('Customization migration completed successfully!');
+    } catch (error) {
+      logger.error('Customization migration failed:', error);
+      // Don't throw error to allow seeding to continue
+    }
+  }
+
   private async seedData() {
     try {
-      logger.info('Seeding database...');
+      logger.info('Force seeding database (destructive operation)...');
+
+      // Run migration first
+      await this.runCustomizationMigration();
       // Clear existing data
+      logger.warn('Clearing all existing data...');
       await db.delete(orderItems);
       await db.delete(orders);
       await db.delete(cartItems);
@@ -174,6 +210,24 @@ export class DatabaseStorage implements IStorage {
             isPopular: true,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'spice-level',
+                name: 'Spice Level',
+                type: 'radio',
+                options: [
+                  { id: 'mild', name: 'Mild', price: 0 },
+                  { id: 'medium', name: 'Medium', price: 0 },
+                  { id: 'hot', name: 'Hot', price: 0 }
+                ]
+              },
+              {
+                id: 'extra-meat',
+                name: 'Extra Meat',
+                type: 'checkbox',
+                price: 50
+              }
+            ]
           },
           {
             name: "招牌炒飯",
@@ -186,6 +240,25 @@ export class DatabaseStorage implements IStorage {
             isPopular: true,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'spice-level',
+                name: 'Spice Level',
+                type: 'radio',
+                options: [
+                  { id: 'mild', name: 'Mild', price: 0 },
+                  { id: 'medium', name: 'Medium', price: 0 },
+                  { id: 'hot', name: 'Hot', price: 0 },
+                  { id: 'extra-hot', name: 'Extra Hot', price: 10 }
+                ]
+              },
+              {
+                id: 'extra-peanuts',
+                name: 'Extra Peanuts',
+                type: 'checkbox',
+                price: 15
+              }
+            ]
           },
           {
             name: "鹽酥雞",
@@ -198,6 +271,35 @@ export class DatabaseStorage implements IStorage {
             isPopular: true,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'spice-level',
+                name: '辣度',
+                type: 'radio',
+                options: [
+                  { id: 'mild', name: '微辣', price: 0 },
+                  { id: 'medium', name: '中辣', price: 0 },
+                  { id: 'hot', name: '大辣', price: 0 },
+                  { id: 'extra-hot', name: '特辣', price: 5 }
+                ]
+              },
+              {
+                id: 'extra-crispy',
+                name: '加酥脆',
+                type: 'checkbox',
+                price: 20
+              },
+              {
+                id: 'portion-size',
+                name: '份量',
+                type: 'radio',
+                options: [
+                  { id: 'small', name: '小份', price: -20 },
+                  { id: 'regular', name: '正常', price: 0 },
+                  { id: 'large', name: '大份', price: 30 }
+                ]
+              }
+            ]
           },
           {
             name: "擔仔麵",
@@ -234,6 +336,46 @@ export class DatabaseStorage implements IStorage {
             isPopular: false,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'sweetness',
+                name: '甜度',
+                type: 'radio',
+                options: [
+                  { id: 'no-sugar', name: '無糖', price: 0 },
+                  { id: 'less-sweet', name: '微糖', price: 0 },
+                  { id: 'half-sweet', name: '半糖', price: 0 },
+                  { id: 'regular', name: '正常糖', price: 0 },
+                  { id: 'extra-sweet', name: '全糖', price: 0 }
+                ]
+              },
+              {
+                id: 'ice-level',
+                name: '冰塊',
+                type: 'radio',
+                options: [
+                  { id: 'no-ice', name: '去冰', price: 0 },
+                  { id: 'less-ice', name: '微冰', price: 0 },
+                  { id: 'regular-ice', name: '正常冰', price: 0 },
+                  { id: 'extra-ice', name: '多冰', price: 0 }
+                ]
+              },
+              {
+                id: 'extra-pearls',
+                name: '加珍珠',
+                type: 'checkbox',
+                price: 10
+              },
+              {
+                id: 'size',
+                name: '杯型',
+                type: 'radio',
+                options: [
+                  { id: 'medium', name: '中杯', price: 0 },
+                  { id: 'large', name: '大杯', price: 15 }
+                ]
+              }
+            ]
           },
           {
             name: "冬瓜茶",
@@ -258,6 +400,40 @@ export class DatabaseStorage implements IStorage {
             isPopular: false,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'noodle-type',
+                name: '麵條種類',
+                type: 'radio',
+                options: [
+                  { id: 'thin', name: '細麵', price: 0 },
+                  { id: 'thick', name: '粗麵', price: 0 },
+                  { id: 'flat', name: '寬麵', price: 5 }
+                ]
+              },
+              {
+                id: 'extra-meat',
+                name: '加肉',
+                type: 'checkbox',
+                price: 50
+              },
+              {
+                id: 'extra-vegetables',
+                name: '加青菜',
+                type: 'checkbox',
+                price: 20
+              },
+              {
+                id: 'soup-richness',
+                name: '湯頭濃度',
+                type: 'radio',
+                options: [
+                  { id: 'light', name: '清淡', price: 0 },
+                  { id: 'regular', name: '正常', price: 0 },
+                  { id: 'rich', name: '濃郁', price: 10 }
+                ]
+              }
+            ]
           },
           {
             name: "餛飩麵",
@@ -270,6 +446,33 @@ export class DatabaseStorage implements IStorage {
             isPopular: false,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'wonton-count',
+                name: '餛飩數量',
+                type: 'radio',
+                options: [
+                  { id: 'regular', name: '正常 (6顆)', price: 0 },
+                  { id: 'extra', name: '加量 (8顆)', price: 25 },
+                  { id: 'double', name: '雙倍 (12顆)', price: 50 }
+                ]
+              },
+              {
+                id: 'noodle-type',
+                name: '麵條種類',
+                type: 'radio',
+                options: [
+                  { id: 'thin', name: '細麵', price: 0 },
+                  { id: 'thick', name: '粗麵', price: 0 }
+                ]
+              },
+              {
+                id: 'extra-vegetables',
+                name: '加青菜',
+                type: 'checkbox',
+                price: 15
+              }
+            ]
           },
           {
             name: "乾拌麵",
@@ -282,15 +485,204 @@ export class DatabaseStorage implements IStorage {
             isPopular: false,
             isAvailable: true,
             status: 'available',
+            customizationOptions: [
+              {
+                id: 'sauce-level',
+                name: '醬汁濃度',
+                type: 'radio',
+                options: [
+                  { id: 'light', name: '清淡', price: 0 },
+                  { id: 'regular', name: '正常', price: 0 },
+                  { id: 'rich', name: '濃郁', price: 5 }
+                ]
+              },
+              {
+                id: 'spice-level',
+                name: '辣度',
+                type: 'radio',
+                options: [
+                  { id: 'no-spice', name: '不辣', price: 0 },
+                  { id: 'mild', name: '微辣', price: 0 },
+                  { id: 'medium', name: '中辣', price: 0 },
+                  { id: 'hot', name: '大辣', price: 0 }
+                ]
+              },
+              {
+                id: 'extra-meat-sauce',
+                name: '加肉燥',
+                type: 'checkbox',
+                price: 30
+              },
+              {
+                id: 'add-egg',
+                name: '加蛋',
+                type: 'checkbox',
+                price: 15
+              }
+            ]
           },
+          {
+            name: "麻辣牛肉麵",
+            description: "香辣過癮，牛肉軟嫩",
+            price: "320.00",
+            categoryName: '麵食類',
+            imageUrl: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=300&h=200",
+            rating: "4.9",
+            reviewCount: 198,
+            isPopular: true,
+            isAvailable: true,
+            status: 'available',
+            customizationOptions: [
+              {
+                id: 'spice-level',
+                name: '辣度',
+                type: 'radio',
+                options: [
+                  { id: 'mild', name: '微辣', price: 0 },
+                  { id: 'medium', name: '中辣', price: 0 },
+                  { id: 'hot', name: '大辣', price: 0 },
+                  { id: 'extra-hot', name: '特辣', price: 10 },
+                  { id: 'super-hot', name: '變態辣', price: 20 }
+                ]
+              },
+              {
+                id: 'extra-meat',
+                name: '加肉',
+                type: 'checkbox',
+                price: 60
+              },
+              {
+                id: 'noodle-firmness',
+                name: '麵條軟硬',
+                type: 'radio',
+                options: [
+                  { id: 'soft', name: '軟', price: 0 },
+                  { id: 'regular', name: '正常', price: 0 },
+                  { id: 'firm', name: '硬', price: 0 }
+                ]
+              }
+            ]
+          },
+          {
+            name: "蝦仁炒飯",
+            description: "新鮮蝦仁，粒粒分明",
+            price: "220.00",
+            categoryName: '飯類',
+            imageUrl: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=300&h=200",
+            rating: "4.5",
+            reviewCount: 112,
+            isPopular: false,
+            isAvailable: true,
+            status: 'available',
+            customizationOptions: [
+              {
+                id: 'extra-shrimp',
+                name: '加蝦仁',
+                type: 'checkbox',
+                price: 40
+              },
+              {
+                id: 'add-egg',
+                name: '加蛋',
+                type: 'checkbox',
+                price: 15
+              },
+              {
+                id: 'spice-level',
+                name: '辣度',
+                type: 'radio',
+                options: [
+                  { id: 'no-spice', name: '不辣', price: 0 },
+                  { id: 'mild', name: '微辣', price: 0 },
+                  { id: 'medium', name: '中辣', price: 0 }
+                ]
+              }
+            ]
+          },
+          {
+            name: "可樂",
+            description: "冰涼暢快，經典口味",
+            price: "35.00",
+            categoryName: '飲料',
+            imageUrl: "https://images.unsplash.com/photo-1581636625402-29b2a704ef13?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=300&h=200",
+            rating: "4.2",
+            reviewCount: 87,
+            isPopular: false,
+            isAvailable: true,
+            status: 'available',
+            customizationOptions: [
+              {
+                id: 'size',
+                name: '杯型',
+                type: 'radio',
+                options: [
+                  { id: 'small', name: '小杯', price: 0 },
+                  { id: 'medium', name: '中杯', price: 10 },
+                  { id: 'large', name: '大杯', price: 20 }
+                ]
+              },
+              {
+                id: 'ice-level',
+                name: '冰塊',
+                type: 'radio',
+                options: [
+                  { id: 'no-ice', name: '去冰', price: 0 },
+                  { id: 'less-ice', name: '微冰', price: 0 },
+                  { id: 'regular-ice', name: '正常冰', price: 0 }
+                ]
+              }
+            ]
+          },
+          {
+            name: "炸雞翅",
+            description: "金黃酥脆，香嫩多汁",
+            price: "150.00",
+            categoryName: '開胃菜',
+            imageUrl: "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=300&h=200",
+            rating: "4.6",
+            reviewCount: 156,
+            isPopular: false,
+            isAvailable: true,
+            status: 'available',
+            customizationOptions: [
+              {
+                id: 'quantity',
+                name: '數量',
+                type: 'radio',
+                options: [
+                  { id: '4-pieces', name: '4隻', price: 0 },
+                  { id: '6-pieces', name: '6隻', price: 50 },
+                  { id: '8-pieces', name: '8隻', price: 100 }
+                ]
+              },
+              {
+                id: 'sauce',
+                name: '醬料',
+                type: 'radio',
+                options: [
+                  { id: 'original', name: '原味', price: 0 },
+                  { id: 'honey-mustard', name: '蜂蜜芥末', price: 5 },
+                  { id: 'bbq', name: 'BBQ醬', price: 5 },
+                  { id: 'spicy', name: '辣醬', price: 5 }
+                ]
+              },
+              {
+                id: 'extra-crispy',
+                name: '加酥脆',
+                type: 'checkbox',
+                price: 15
+              }
+            ]
+          }
       ];
 
       const menuItemsToInsert = menuItemsData.map(item => {
-        const { categoryName, ...rest } = item;
+        const { categoryName, customizationOptions, ...rest } = item;
         return {
           ...rest,
           shopId: shopId,
           categoryId: categoryMap[categoryName],
+          customizationOptions: customizationOptions ? JSON.stringify(customizationOptions) : null,
         }
       });
 
@@ -306,6 +698,11 @@ export class DatabaseStorage implements IStorage {
   async resetAndSeedDatabase() {
     logger.warn('Database reset and seed initiated.');
     await this.seedData();
+  }
+
+  // Public method to run migration only
+  async runMigration() {
+    await this.runCustomizationMigration();
   }
 
   // Test database connection
@@ -381,12 +778,13 @@ export class DatabaseStorage implements IStorage {
   
   // Menu Item methods
   async getMenuItems(shopId: number, categoryId?: number): Promise<MenuItemWithCategory[]> {
-    const cacheKey = `menuItems:${shopId}:${categoryId || 'all'}`;
-    const cached = await cacheGet(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
+    // Cache disabled temporarily for customization updates
+    // const cacheKey = `menuItems:${shopId}:${categoryId || 'all'}`;
+    // const cached = await cacheGet(cacheKey);
+
+    // if (cached) {
+    //   return cached;
+    // }
 
     const query = db.select({
         menuItem: menuItems,
@@ -400,15 +798,15 @@ export class DatabaseStorage implements IStorage {
     if (categoryId) {
       query.where(eq(menuItems.categoryId, categoryId));
     }
-    
+
     const result = await query;
-    
+
     const finalResult = result.map(r => ({
       ...r.menuItem,
       category: r.category || undefined,
     }));
-    
-    await cacheSet(cacheKey, finalResult, 3600); // Cache for 1 hour
+
+    // await cacheSet(cacheKey, finalResult, 3600); // Cache for 1 hour
 
     return finalResult;
   }
@@ -545,17 +943,61 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Invalid session ID format');
     }
 
-    const existingItem = await db.select().from(cartItems).where(and(
+    // Get menu item to calculate customization cost
+    const menuItem = await db.select().from(menuItems).where(eq(menuItems.id, cartItem.menuItemId)).limit(1);
+    if (menuItem.length === 0) {
+      throw new Error('Menu item not found');
+    }
+
+    // Calculate customization cost
+    let customizationCost = 0;
+    if (menuItem[0].customizationOptions && cartItem.customizations) {
+      const customizationOptions = menuItem[0].customizationOptions as any[];
+      const selectedCustomizations = cartItem.customizations as any;
+
+      customizationOptions.forEach(option => {
+        const selectedValue = selectedCustomizations[option.id];
+
+        if (option.type === 'checkbox' && selectedValue) {
+          customizationCost += option.price || 0;
+        } else if (option.type === 'radio' && selectedValue && option.options) {
+          const selectedOption = option.options.find((opt: any) => opt.id === selectedValue);
+          if (selectedOption) {
+            customizationCost += selectedOption.price || 0;
+          }
+        }
+      });
+    }
+
+    // Check for existing item with same customizations
+    const existingItems = await db.select().from(cartItems).where(and(
       eq(cartItems.sessionId, cartItem.sessionId),
       eq(cartItems.menuItemId, cartItem.menuItemId)
-    )).limit(1);
+    ));
 
-    if (existingItem.length > 0) {
+    // Find exact match including customizations
+    const exactMatch = existingItems.find(item => {
+      const existingCustomizations = JSON.stringify(item.customizations || {});
+      const newCustomizations = JSON.stringify(cartItem.customizations || {});
+      const existingInstructions = item.specialInstructions || '';
+      const newInstructions = cartItem.specialInstructions || '';
+
+      return existingCustomizations === newCustomizations &&
+             existingInstructions === newInstructions;
+    });
+
+    if (exactMatch) {
+      // Update quantity for exact match
       await db.update(cartItems)
-        .set({ quantity: existingItem[0].quantity + cartItem.quantity })
-        .where(eq(cartItems.id, existingItem[0].id));
+        .set({ quantity: exactMatch.quantity + cartItem.quantity })
+        .where(eq(cartItems.id, exactMatch.id));
     } else {
-      await db.insert(cartItems).values(cartItem);
+      // Insert as new item (different customizations) with calculated cost
+      const cartItemWithCost = {
+        ...cartItem,
+        customizationCost: customizationCost.toString()
+      };
+      await db.insert(cartItems).values(cartItemWithCost as any);
     }
   }
 

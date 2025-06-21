@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ChefHat, ShoppingCart, Plus, User, LogOut } from "lucide-react";
+import { ChefHat, ShoppingCart, User, LogOut } from "lucide-react";
+import { EnhancedMenuItemCard } from "@/components/enhanced-menu-item-card";
 import type { MenuItemWithCategory, Category } from "@shared/schema";
 
 export default function WebsiteMenu() {
@@ -38,8 +38,16 @@ export default function WebsiteMenu() {
   // Filter available items only
   const availableItems = menuItems.filter(item => item.status === "available");
 
-  const handleAddToCart = (item: MenuItemWithCategory) => {
-    addItem(item);
+  const handleAddToCart = (item: MenuItemWithCategory, customizations?: any, quantity?: number, specialInstructions?: string) => {
+    // Add item with customizations
+    const itemToAdd = {
+      ...item,
+      customizations: customizations || {},
+      specialInstructions: specialInstructions || '',
+      quantity: quantity || 1
+    };
+
+    addItem(itemToAdd);
     toast({
       title: "Added to cart",
       description: `${item.name} has been added to your cart`,
@@ -156,41 +164,13 @@ export default function WebsiteMenu() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {availableItems.map((item) => (
-              <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="aspect-w-16 aspect-h-9">
-                  <img
-                    src={item.imageUrl || "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=250"}
-                    alt={item.name}
-                    className="w-full h-48 object-cover"
-                  />
-                </div>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{item.name}</CardTitle>
-                    <Badge variant="secondary" className="text-lg font-bold text-orange-600">
-                      ${item.price}
-                    </Badge>
-                  </div>
-                  <CardDescription className="text-sm">
-                    {item.description || "Delicious menu item crafted with care"}
-                  </CardDescription>
-                  {item.category && (
-                    <Badge variant="outline" className="w-fit">
-                      {item.category.name}
-                    </Badge>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    onClick={() => handleAddToCart(item)}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                    disabled={item.status !== "available"}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add to Cart
-                  </Button>
-                </CardContent>
-              </Card>
+              <EnhancedMenuItemCard
+                key={item.id}
+                item={item}
+                onAddToCart={(customizations, quantity, specialInstructions) =>
+                  handleAddToCart(item, customizations, quantity, specialInstructions)
+                }
+              />
             ))}
           </div>
         )}

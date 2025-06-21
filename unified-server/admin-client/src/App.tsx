@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
-import { CartProvider } from "@/hooks/use-cart";
+
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -18,6 +18,7 @@ import AdminDesks from "@/pages/admin/desks";
 import CustomerMenu from "@/pages/customer/website-menu";
 import CustomerCart from "@/pages/customer/cart";
 import CustomerOrders from "@/pages/customer/orders";
+import NewFeaturePage from "@/pages/customer/new-feature";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/menu" component={CustomerMenu} />
       <Route path="/cart" component={CustomerCart} />
       <Route path="/orders" component={CustomerOrders} />
+      <Route path="/new-feature" component={NewFeaturePage} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
@@ -48,14 +50,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <CartProvider>
-          <TooltipProvider>
-            <div className="min-h-screen bg-white">
-              <Toaster />
-              <Router />
-            </div>
-          </TooltipProvider>
-        </CartProvider>
+        <TooltipProvider>
+          <div className="min-h-screen bg-white">
+            <Toaster />
+            <Router />
+          </div>
+        </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

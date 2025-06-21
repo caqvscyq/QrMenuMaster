@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --outDir ../public/admin-new",
+    "build:admin": "vite build --outDir ../public/admin-new",
+    "build:customer": "vite build --outDir ../public/customer",
     "preview": "vite preview",
     "check": "tsc"
   },
