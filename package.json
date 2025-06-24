@@ -5,10 +5,14 @@
   "private": true,
   "scripts": {
     "dev": "cd unified-server && npm run dev",
-    "build": "cd unified-server && npm run build",
+    "dev:customer": "concurrently \"cd admin-client && npm run dev:customer\" \"cd unified-server && npm run dev\"",
+    "build": "cd admin-client && npm run build && cd ../unified-server && npm run build",
+    "build:frontend": "cd admin-client && npm run build",
+    "build:backend": "cd unified-server && npm run build",
+    "build:customer": "cd admin-client && npm run build:customer",
     "start": "cd unified-server && npm start",
-    "install:all": "npm install && cd unified-server && npm install",
-    "clean": "cd unified-server && rm -rf node_modules dist",
+    "install:all": "npm install && cd unified-server && npm install && cd ../admin-client && npm install",
+    "clean": "cd unified-server && rm -rf node_modules dist && cd ../admin-client && rm -rf node_modules dist",
     "seed": "cd unified-server && npm run seed",
     "seed:force": "cd unified-server && npm run seed:force",
     "db:init": "cd unified-server && npm run db:init",
@@ -33,5 +37,8 @@
     "react"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }

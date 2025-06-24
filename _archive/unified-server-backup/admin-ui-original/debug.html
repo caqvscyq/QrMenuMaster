@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 JavaScript Debug Test</h1>
+        
+        <div class="test-section">
+            <h3>Test 1: Basic JavaScript</h3>
+            <button onclick="test1()">Test Basic JS</button>
+            <div id="result1" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 2: Console Logging</h3>
+            <button onclick="test2()">Test Console</button>
+            <div id="result2" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 3: Fetch API</h3>
+            <button onclick="test3()">Test Fetch</button>
+            <div id="result3" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 4: Admin Login API</h3>
+            <button onclick="test4()">Test Admin Login</button>
+            <div id="result4" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 5: Form Submission</h3>
+            <form id="testForm" onsubmit="return test5(event)">
+                <input type="text" placeholder="Test input" value="test">
+                <button type="submit">Submit Form</button>
+            </form>
+            <div id="result5" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Test 1: Basic JavaScript
+        function test1() {
+            try {
+                const result = document.getElementById('result1');
+                result.innerHTML = '<div class="success">✅ Basic JavaScript is working!</div>';
+                result.innerHTML += '<div class="info">Date: ' + new Date().toISOString() + '</div>';
+                result.innerHTML += '<div class="info">Math.random(): ' + Math.random() + '</div>';
+                console.log('✅ Test 1 passed: Basic JavaScript works');
+            } catch (error) {
+                document.getElementById('result1').innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+                console.error('❌ Test 1 failed:', error);
+            }
+        }
+
+        // Test 2: Console Logging
+        function test2() {
+            try {
+                console.log('🔍 Test 2: Console logging test');
+                console.warn('⚠️ Test warning message');
+                console.error('🚨 Test error message (this is intentional)');
+                console.info('ℹ️ Test info message');
+                
+                document.getElementById('result2').innerHTML = '<div class="success">✅ Console logging executed (check browser console)</div>';
+                console.log('✅ Test 2 passed: Console logging works');
+            } catch (error) {
+                document.getElementById('result2').innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+                console.error('❌ Test 2 failed:', error);
+            }
+        }
+
+        // Test 3: Fetch API
+        async function test3() {
+            try {
+                document.getElementById('result3').innerHTML = '<div class="info">🔄 Testing fetch API...</div>';
+                console.log('🌐 Test 3: Testing fetch API');
+                
+                const response = await fetch('/api/admin/db-status');
+                const data = await response.json();
+                
+                document.getElementById('result3').innerHTML = '<div class="success">✅ Fetch API works!</div>';
+                document.getElementById('result3').innerHTML += '<div class="info">Response: ' + JSON.stringify(data, null, 2) + '</div>';
+                console.log('✅ Test 3 passed: Fetch API works', data);
+            } catch (error) {
+                document.getElementById('result3').innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+                console.error('❌ Test 3 failed:', error);
+            }
+        }
+
+        // Test 4: Admin Login API
+        async function test4() {
+            try {
+                document.getElementById('result4').innerHTML = '<div class="info">🔄 Testing admin login API...</div>';
+                console.log('🔐 Test 4: Testing admin login API');
+                
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result4').innerHTML = '<div class="success">✅ Admin login API works!</div>';
+                    document.getElementById('result4').innerHTML += '<div class="info">User: ' + data.user.username + '</div>';
+                    document.getElementById('result4').innerHTML += '<div class="info">Token: ' + (data.token ? 'Present' : 'Missing') + '</div>';
+                    console.log('✅ Test 4 passed: Admin login API works', data);
+                } else {
+                    document.getElementById('result4').innerHTML = '<div class="error">❌ Login failed: ' + data.message + '</div>';
+                    console.error('❌ Test 4 failed: Login failed', data);
+                }
+            } catch (error) {
+                document.getElementById('result4').innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+                console.error('❌ Test 4 failed:', error);
+            }
+        }
+
+        // Test 5: Form Submission
+        function test5(event) {
+            try {
+                event.preventDefault();
+                console.log('📝 Test 5: Form submission test');
+                console.log('📝 Event object:', event);
+                
+                const formData = new FormData(event.target);
+                const inputValue = formData.get('test') || event.target.querySelector('input').value;
+                
+                document.getElementById('result5').innerHTML = '<div class="success">✅ Form submission prevented and handled!</div>';
+                document.getElementById('result5').innerHTML += '<div class="info">Input value: ' + inputValue + '</div>';
+                console.log('✅ Test 5 passed: Form submission works');
+                
+                return false;
+            } catch (error) {
+                document.getElementById('result5').innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+                console.error('❌ Test 5 failed:', error);
+                return false;
+            }
+        }
+
+        // Page load test
+        window.addEventListener('load', function() {
+            console.log('🚀 Debug page loaded successfully');
+            console.log('🔍 Document ready state:', document.readyState);
+            console.log('🔍 User agent:', navigator.userAgent);
+            console.log('🔍 Current URL:', window.location.href);
+        });
+
+        // Error handlers
+        window.addEventListener('error', function(e) {
+            console.error('🚨 Global JavaScript Error:', e.error);
+            console.error('🚨 Error details:', e.message, e.filename, e.lineno, e.colno);
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('🚨 Unhandled Promise Rejection:', e.reason);
+        });
+
+        console.log('🔧 Debug script loaded and ready');
+    </script>
+</body>
+</html>

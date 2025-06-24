@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { databaseStorage } from '../services/database.service';
-import { insertCartItemSchema, insertOrderSchema } from '../shared/schema';
+import { insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from '../shared/schema';
 import { customerAuth } from '../middleware/auth';
 import { cacheMiddleware } from '../config/redis';
 import { logger } from '../config/logger';
@@ -152,7 +152,23 @@ router.get('/cart', async (req, res) => {
     logger.info(`⏱️ [CART LATENCY] Backend: Database query took: ${dbEndTime - dbStartTime}ms`);
     logger.info(`📦 [CART LATENCY] Backend: Returning ${items.length} cart items`);
 
-    res.json(items);
+    // Calculate correct totals to prevent frontend pricing discrepancies
+    const enrichedItems = items.map(item => {
+      const basePrice = parseFloat(item.menuItem.price);
+      const customizationCost = parseFloat(item.customizationCost || '0');
+      const totalItemPrice = (basePrice + customizationCost) * item.quantity;
+      
+      return {
+        ...item,
+        // Ensure customizationCost is properly formatted for frontend
+        customizationCost: customizationCost.toFixed(2),
+        // Add calculated totals to prevent frontend calculation errors
+        calculatedPrice: totalItemPrice.toFixed(2),
+        basePrice: basePrice.toFixed(2)
+      };
+    });
+
+    res.json(enrichedItems);
 
     const totalTime = Date.now() - startTime;
     logger.info(`✅ [CART LATENCY] Backend: Cart fetch completed in: ${totalTime}ms`);
@@ -198,7 +214,23 @@ router.post('/cart', async (req, res) => {
       logger.info(`📡 [CART LATENCY] Backend: Cart refetch took: ${fetchEndTime - fetchStartTime}ms`);
       logger.info(`📦 [CART LATENCY] Backend: Returning ${items.length} cart items`);
 
-      res.json(items);
+      // Calculate correct totals to prevent frontend pricing discrepancies
+      const enrichedItems = items.map(item => {
+        const basePrice = parseFloat(item.menuItem.price);
+        const customizationCost = parseFloat(item.customizationCost || '0');
+        const totalItemPrice = (basePrice + customizationCost) * item.quantity;
+        
+        return {
+          ...item,
+          // Ensure customizationCost is properly formatted for frontend
+          customizationCost: customizationCost.toFixed(2),
+          // Add calculated totals to prevent frontend calculation errors
+          calculatedPrice: totalItemPrice.toFixed(2),
+          basePrice: basePrice.toFixed(2)
+        };
+      });
+
+      res.json(enrichedItems);
 
       const totalTime = Date.now() - startTime;
       logger.info(`✅ [CART LATENCY] Backend: Add to cart completed in: ${totalTime}ms`);
@@ -283,26 +315,44 @@ router.post('/orders', async (req, res) => {
   try {
     const { sessionId } = req as any;
     const { order, items } = req.body;
-    
+
     if (!order || !items || !Array.isArray(items)) {
       return res.status(400).json({ message: 'Invalid order data' });
     }
-    
+
     try {
       const shopId = parseInt(req.query.shopId as string) || 1;
-      
+
       // Ensure the order has the session ID and shop ID
       const validatedOrder = insertOrderSchema.parse({
         ...order,
         sessionId,
         shopId
       });
-      
-      const createdOrder = await databaseStorage.createOrder(validatedOrder, items);
-      
+
+      // Validate each order item to ensure customizationCost is preserved
+      const validatedItems = items.map(item => {
+        return insertOrderItemSchema.parse({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          price: item.price,
+          itemName: item.itemName,
+          customizations: item.customizations || {},
+          specialInstructions: item.specialInstructions || null,
+          customizationCost: item.customizationCost || "0.00"
+        });
+      });
+
+      console.log('✅ Order validation successful');
+      console.log('   Validated order:', validatedOrder);
+      console.log('   Validated items:', validatedItems);
+
+      const createdOrder = await databaseStorage.createOrder(validatedOrder, validatedItems);
+
       res.json(createdOrder);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('❌ Order validation failed:', error.errors);
         return res.status(400).json({ message: 'Invalid order data', errors: error.errors });
       }
       throw error;
@@ -322,7 +372,18 @@ router.get('/orders', async (req, res) => {
       return res.status(400).json({ message: 'Session ID is required' });
     }
 
+    logger.info(`Fetching orders for session: ${sessionId}`);
     const orders = await databaseStorage.getOrdersBySession(sessionId);
+    logger.info(`Found ${orders.length} orders for session: ${sessionId}`);
+
+    // Log order items with customization data for debugging
+    orders.forEach(order => {
+      logger.info(`Order ${order.id} has ${order.items.length} items`);
+      order.items.forEach(item => {
+        logger.info(`  Item: ${item.itemName}, Price: ${item.price}, CustomizationCost: ${item.customizationCost || '0.00'}`);
+      });
+    });
+
     res.json(orders);
   } catch (error) {
     logger.error('Error fetching orders by session:', error);

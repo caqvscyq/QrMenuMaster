@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Browser QR Menu Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-card { background: white; margin: 15px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { border-left: 4px solid #28a745; background: #d4edda; }
+        .error { border-left: 4px solid #dc3545; background: #f8d7da; }
+        .warning { border-left: 4px solid #ffc107; background: #fff3cd; }
+        .info { border-left: 4px solid #17a2b8; background: #d1ecf1; }
+        button { padding: 12px 20px; margin: 8px 4px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .log { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .status-item { padding: 10px; background: #f8f9fa; border-radius: 4px; text-align: center; }
+        .table-selector { margin: 15px 0; }
+        .table-selector select { padding: 8px; font-size: 14px; }
+        h1 { color: #333; text-align: center; }
+        h2 { color: #555; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .step-number { background: #007bff; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Private Browser QR Menu Test</h1>
+        <p style="text-align: center; color: #666;">Testing session management and cart functionality in private/incognito mode</p>
+
+        <!-- Current Status -->
+        <div class="test-card info">
+            <h2><span class="step-number">ℹ</span>Current Session Status</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <strong>Table Number:</strong><br>
+                    <span id="tableNumber">--</span>
+                </div>
+                <div class="status-item">
+                    <strong>Session ID:</strong><br>
+                    <span id="sessionId" style="font-family: monospace; font-size: 11px;">--</span>
+                </div>
+                <div class="status-item">
+                    <strong>Browser Mode:</strong><br>
+                    <span id="browserMode">--</span>
+                </div>
+                <div class="status-item">
+                    <strong>Storage Available:</strong><br>
+                    <span id="storageStatus">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Selection -->
+        <div class="test-card">
+            <h2><span class="step-number">1</span>Table Selection</h2>
+            <div class="table-selector">
+                <label for="tableSelect">Select Table (simulates QR code scan):</label>
+                <select id="tableSelect" onchange="updateTableFromSelect()">
+                    <option value="">-- Select Table --</option>
+                    <option value="1">Table 1</option>
+                    <option value="2">Table 2</option>
+                    <option value="3">Table 3</option>
+                    <option value="4">Table 4</option>
+                    <option value="5">Table 5</option>
+                </select>
+                <button class="btn-primary" onclick="simulateQRScan()">Simulate QR Scan</button>
+            </div>
+            <p><small>This simulates scanning a QR code that contains ?table=X parameter</small></p>
+        </div>
+
+        <!-- Session Management -->
+        <div class="test-card">
+            <h2><span class="step-number">2</span>Session Management</h2>
+            <button class="btn-success" onclick="createSession()">Create New Session</button>
+            <button class="btn-secondary" onclick="validateSession()">Validate Current Session</button>
+            <button class="btn-danger" onclick="clearSession()">Clear Session</button>
+            <p><small>Tests database-based session creation without relying on cached data</small></p>
+        </div>
+
+        <!-- Cart Operations -->
+        <div class="test-card">
+            <h2><span class="step-number">3</span>Cart Operations</h2>
+            <button class="btn-primary" onclick="testCartAccess()">Access Cart</button>
+            <button class="btn-success" onclick="addToCart()">Add Item to Cart</button>
+            <button class="btn-secondary" onclick="viewCart()">View Cart Contents</button>
+            <button class="btn-danger" onclick="clearCart()">Clear Cart</button>
+            <p><small>Tests all cart functionality with database-based sessions</small></p>
+        </div>
+
+        <!-- Test Results -->
+        <div class="test-card">
+            <h2><span class="step-number">📊</span>Test Results</h2>
+            <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+            <div id="testLog" class="log">Ready to test...\n</div>
+        </div>
+
+        <!-- Quick Test Suite -->
+        <div class="test-card warning">
+            <h2><span class="step-number">🚀</span>Quick Full Test</h2>
+            <button class="btn-primary" onclick="runFullTest()">Run Complete Test Suite</button>
+            <p><small>Runs all tests automatically to verify private browsing compatibility</small></p>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        let currentTableNumber = null;
+
+        // Initialize page
+        function init() {
+            // Check URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const tableFromUrl = params.get('table');
+            
+            if (tableFromUrl) {
+                currentTableNumber = tableFromUrl;
+                document.getElementById('tableSelect').value = tableFromUrl;
+            }
+            
+            updateStatus();
+            detectBrowserMode();
+            log('🔒 Private browser test initialized');
+            
+            if (tableFromUrl) {
+                log(`📱 Table ${tableFromUrl} detected from URL parameter`);
+            } else {
+                log('⚠️ No table parameter in URL. Select a table to begin testing.');
+            }
+        }
+
+        function updateStatus() {
+            document.getElementById('tableNumber').textContent = currentTableNumber || 'Not Set';
+            document.getElementById('sessionId').textContent = currentSessionId || 'Not Created';
+        }
+
+        function detectBrowserMode() {
+            // Test if we're in private browsing mode
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                document.getElementById('storageStatus').textContent = 'Available';
+                
+                // Check if this might be private browsing
+                if (navigator.webdriver || window.chrome?.runtime?.onConnect) {
+                    document.getElementById('browserMode').textContent = 'Possibly Private';
+                } else {
+                    document.getElementById('browserMode').textContent = 'Normal';
+                }
+            } catch (e) {
+                document.getElementById('storageStatus').textContent = 'Blocked (Private Mode)';
+                document.getElementById('browserMode').textContent = 'Private/Incognito';
+            }
+        }
+
+        function updateTableFromSelect() {
+            const select = document.getElementById('tableSelect');
+            currentTableNumber = select.value;
+            updateStatus();
+            if (currentTableNumber) {
+                log(`📋 Table ${currentTableNumber} selected`);
+            }
+        }
+
+        function simulateQRScan() {
+            const tableNumber = document.getElementById('tableSelect').value;
+            if (!tableNumber) {
+                log('❌ Please select a table first', 'error');
+                return;
+            }
+            
+            // Update URL to simulate QR code scan
+            const newUrl = `${window.location.pathname}?table=${tableNumber}`;
+            window.history.pushState({}, '', newUrl);
+            currentTableNumber = tableNumber;
+            updateStatus();
+            log(`📱 QR code scan simulated for table ${tableNumber}`, 'success');
+        }
+
+        async function createSession() {
+            if (!currentTableNumber) {
+                log('❌ No table selected. Please select a table first.', 'error');
+                return;
+            }
+
+            try {
+                log(`🔄 Creating session for table ${currentTableNumber}...`);
+                
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tableNumber: currentTableNumber,
+                        shopId: 1,
+                        expirationHours: 4
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentSessionId = data.session.id;
+                    updateStatus();
+                    log(`✅ Session created successfully: ${currentSessionId}`, 'success');
+                    log(`   Format: session-${currentTableNumber}-{timestamp}-{random}`, 'info');
+                } else {
+                    log(`❌ Failed to create session: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error creating session: ${error.message}`, 'error');
+            }
+        }
+
+        async function validateSession() {
+            if (!currentSessionId) {
+                log('❌ No session to validate. Create a session first.', 'error');
+                return;
+            }
+
+            try {
+                log('🔍 Validating session...');
+                
+                const response = await fetch(`/api/session/${currentSessionId}`, {
+                    headers: { 'X-Session-ID': currentSessionId }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Session is valid and active`, 'success');
+                    log(`   Table: ${data.tableNumber}, Status: ${data.status}`, 'info');
+                } else {
+                    const errorData = await response.json();
+                    log(`❌ Session validation failed: ${response.status} ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error validating session: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCartAccess() {
+            if (!currentSessionId) {
+                log('❌ No session ID. Create a session first.', 'error');
+                return;
+            }
+
+            try {
+                log('🛒 Testing cart access...');
+                
+                const response = await fetch(`/api/cart/${currentSessionId}`, {
+                    headers: { 
+                        'X-Session-ID': currentSessionId,
+                        'X-Table-Number': currentTableNumber
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Cart access successful! Items in cart: ${data.length}`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    log(`❌ Cart access failed: ${response.status} ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error accessing cart: ${error.message}`, 'error');
+            }
+        }
+
+        async function addToCart() {
+            if (!currentSessionId) {
+                log('❌ No session ID. Create a session first.', 'error');
+                return;
+            }
+
+            try {
+                log('➕ Adding item to cart...');
+                
+                const response = await fetch('/api/cart', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': currentSessionId,
+                        'X-Table-Number': currentTableNumber
+                    },
+                    body: JSON.stringify({
+                        menuItemId: 1,
+                        quantity: 1
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Item added to cart! Total items: ${data.length}`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    log(`❌ Add to cart failed: ${response.status} ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error adding to cart: ${error.message}`, 'error');
+            }
+        }
+
+        async function viewCart() {
+            if (!currentSessionId) {
+                log('❌ No session ID. Create a session first.', 'error');
+                return;
+            }
+
+            try {
+                log('👀 Viewing cart contents...');
+                
+                const response = await fetch(`/api/cart/${currentSessionId}`, {
+                    headers: { 
+                        'X-Session-ID': currentSessionId,
+                        'X-Table-Number': currentTableNumber
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`📋 Cart contents (${data.length} items):`, 'info');
+                    data.forEach((item, index) => {
+                        log(`   ${index + 1}. ${item.menuItem?.name || 'Unknown'} x ${item.quantity}`, 'info');
+                    });
+                } else {
+                    const errorData = await response.json();
+                    log(`❌ View cart failed: ${response.status} ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error viewing cart: ${error.message}`, 'error');
+            }
+        }
+
+        function clearSession() {
+            currentSessionId = null;
+            updateStatus();
+            log('🗑️ Session cleared from memory', 'warning');
+        }
+
+        function clearCart() {
+            log('🗑️ Cart clear functionality would be implemented here', 'info');
+        }
+
+        async function runFullTest() {
+            log('🚀 Starting complete test suite for private browsing...', 'info');
+            log('=' .repeat(50));
+            
+            // Step 1: Set table if not set
+            if (!currentTableNumber) {
+                currentTableNumber = '1';
+                document.getElementById('tableSelect').value = '1';
+                updateStatus();
+                log('📋 Auto-selected table 1 for testing');
+            }
+            
+            // Step 2: Create session
+            await createSession();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 3: Validate session
+            await validateSession();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 4: Test cart access
+            await testCartAccess();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 5: Add to cart
+            await addToCart();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Step 6: View cart
+            await viewCart();
+            
+            log('=' .repeat(50));
+            log('🎉 Complete test suite finished!', 'success');
+        }
+
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').textContent = 'Log cleared...\n';
+        }
+
+        // Initialize when page loads
+        init();
+    </script>
+</body>
+</html>

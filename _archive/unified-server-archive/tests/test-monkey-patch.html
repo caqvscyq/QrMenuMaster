@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Monkey Patch</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
+        .error { background: #ffe6e6; border-left: 4px solid #ff0000; }
+        .success { background: #e6ffe6; border-left: 4px solid #00aa00; }
+        .info { background: #e6f3ff; border-left: 4px solid #0066cc; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🐒 Monkey Patch Test</h1>
+    <p>This page tests if the React API fix is working by simulating the broken API calls.</p>
+    
+    <div>
+        <button onclick="testOldCartAPI()">Test Old Cart API (should be fixed)</button>
+        <button onclick="testSessionAPI()">Test Session API</button>
+        <button onclick="testMenuAPI()">Test Menu API</button>
+        <button onclick="checkDebugInfo()">Check Debug Info</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <div id="logs"></div>
+
+    <!-- Include the monkey patch -->
+    <script src="/fix-react-api.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logs.appendChild(logDiv);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        async function testOldCartAPI() {
+            try {
+                log('🧪 Testing old cart API pattern (should be intercepted and fixed)...', 'info');
+                
+                // This is the broken API call that the React app was making
+                const response = await fetch('/api/cart/session-fake-session-id');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Old cart API call succeeded (was fixed by monkey patch): ${data.length} items`, 'success');
+                } else {
+                    log(`❌ Old cart API call failed: ${response.status} - ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Old cart API test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSessionAPI() {
+            try {
+                log('🔑 Testing session creation...', 'info');
+                
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tableNumber: 'TEST-MONKEY',
+                        shopId: 1
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`✅ Session created: ${data.session.id}`, 'success');
+                } else {
+                    log(`❌ Session creation failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Session test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMenuAPI() {
+            try {
+                log('🍽️ Testing menu API (should be redirected)...', 'info');
+                
+                // Test both old and new patterns
+                const oldResponse = await fetch('/api/menu');
+                const oldData = await oldResponse.json();
+                
+                if (oldResponse.ok) {
+                    log(`✅ Old menu API (/api/menu) succeeded: ${oldData.length} items`, 'success');
+                } else {
+                    log(`❌ Old menu API failed: ${oldResponse.status}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Menu test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function checkDebugInfo() {
+            log('🔍 Checking debug information...', 'info');
+            
+            if (window.debugSession) {
+                const sessionId = window.debugSession.getCurrentSession();
+                const tableNumber = window.debugSession.getTableNumber();
+                
+                log(`Current Session: ${sessionId || 'None'}`, 'info');
+                log(`Table Number: ${tableNumber}`, 'info');
+                log(`Global Session: ${window.__currentSessionId || 'None'}`, 'info');
+                
+                // Check localStorage
+                const keys = ['session-A1', 'session-backup-A1', 'cart-session-id-A1'];
+                keys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    log(`localStorage[${key}]: ${value || 'None'}`, 'info');
+                });
+                
+            } else {
+                log('❌ Debug session object not found - monkey patch may not be loaded', 'error');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        // Initialize
+        window.onload = function() {
+            log('🐒 Monkey patch test page loaded', 'info');
+            
+            if (window.fetch !== fetch) {
+                log('✅ Fetch function has been monkey patched', 'success');
+            } else {
+                log('❌ Fetch function has NOT been monkey patched', 'error');
+            }
+            
+            setTimeout(checkDebugInfo, 1000);
+        };
+    </script>
+</body>
+</html>

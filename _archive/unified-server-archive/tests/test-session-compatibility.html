@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Compatibility Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Session Compatibility Test</h1>
+        <p>This page tests backward compatibility between old and new session ID formats.</p>
+
+        <div class="test-section">
+            <h3>📋 Current Session Info</h3>
+            <div id="sessionInfo">Loading...</div>
+            <button onclick="refreshSessionInfo()">🔄 Refresh</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🧹 Session Storage Management</h3>
+            <button onclick="clearAllSessions()">🗑️ Clear All Sessions</button>
+            <button onclick="createOldFormatSession()">📜 Create Old Format Session</button>
+            <button onclick="createNewFormatSession()">🆕 Create New Format Session</button>
+            <button onclick="showStoredSessions()">👁️ Show Stored Sessions</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 API Tests</h3>
+            <button onclick="testOrdersEndpoint()">📦 Test Orders Endpoint</button>
+            <button onclick="testCartEndpoint()">🛒 Test Cart Endpoint</button>
+            <button onclick="testSessionValidation()">✅ Test Session Validation</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="testLog" class="log">Click buttons above to run tests...</div>
+        </div>
+    </div>
+
+    <!-- Load session manager -->
+    <script src="/customer/session-manager.js"></script>
+    
+    <script>
+        let testLog = '';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+            testLog += `[${timestamp}] ${prefix} ${message}\n`;
+            document.getElementById('testLog').textContent = testLog;
+            console.log(message);
+        }
+
+        function clearLog() {
+            testLog = '';
+            document.getElementById('testLog').textContent = 'Log cleared...';
+        }
+
+        async function refreshSessionInfo() {
+            try {
+                await window.sessionManager.initialize();
+                const sessionId = window.sessionManager.getSessionId();
+                const tableNumber = window.sessionManager.getTableNumber();
+                
+                const isOldFormat = /^session-\d{13}-[A-Za-z0-9]{6,15}$/.test(sessionId);
+                const isNewFormat = /^session-[A-Za-z0-9_-]+-\d{13}-[A-Za-z0-9]{6,15}$/.test(sessionId);
+                
+                let formatInfo = '';
+                if (isNewFormat) formatInfo = '🆕 New Format';
+                else if (isOldFormat) formatInfo = '📜 Old Format';
+                else formatInfo = '❓ Unknown Format';
+                
+                document.getElementById('sessionInfo').innerHTML = `
+                    <strong>Session ID:</strong> ${sessionId}<br>
+                    <strong>Table Number:</strong> ${tableNumber}<br>
+                    <strong>Format:</strong> ${formatInfo}<br>
+                    <strong>Global Session:</strong> ${window.__currentSessionId || 'Not set'}
+                `;
+                
+                log(`Session info refreshed: ${sessionId} (${formatInfo})`, 'success');
+            } catch (error) {
+                log(`Failed to refresh session info: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAllSessions() {
+            const keys = Object.keys(localStorage).filter(key => key.includes('session'));
+            keys.forEach(key => localStorage.removeItem(key));
+            delete window.__currentSessionId;
+            log(`Cleared ${keys.length} session keys from localStorage`, 'success');
+            refreshSessionInfo();
+        }
+
+        function createOldFormatSession() {
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 11);
+            const oldSessionId = `session-${timestamp}-${random}`;
+            
+            localStorage.setItem('session-A1', oldSessionId);
+            localStorage.setItem('cart-session-id-A1', oldSessionId);
+            window.__currentSessionId = oldSessionId;
+            
+            log(`Created old format session: ${oldSessionId}`, 'warning');
+            refreshSessionInfo();
+        }
+
+        function createNewFormatSession() {
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 11);
+            const newSessionId = `session-A1-${timestamp}-${random}`;
+            
+            localStorage.setItem('session-A1', newSessionId);
+            localStorage.setItem('session-backup-A1', newSessionId);
+            window.__currentSessionId = newSessionId;
+            
+            log(`Created new format session: ${newSessionId}`, 'success');
+            refreshSessionInfo();
+        }
+
+        function showStoredSessions() {
+            const sessionKeys = Object.keys(localStorage).filter(key => key.includes('session'));
+            if (sessionKeys.length === 0) {
+                log('No sessions found in localStorage', 'warning');
+                return;
+            }
+            
+            log('Stored sessions:', 'info');
+            sessionKeys.forEach(key => {
+                const value = localStorage.getItem(key);
+                const isOld = /^session-\d{13}-[A-Za-z0-9]{6,15}$/.test(value);
+                const isNew = /^session-[A-Za-z0-9_-]+-\d{13}-[A-Za-z0-9]{6,15}$/.test(value);
+                const format = isNew ? '🆕' : isOld ? '📜' : '❓';
+                log(`  ${key}: ${value} ${format}`, 'info');
+            });
+        }
+
+        async function testOrdersEndpoint() {
+            try {
+                await window.sessionManager.initialize();
+                const sessionId = window.sessionManager.getSessionId();
+                const headers = window.sessionManager.getHeaders();
+                
+                log(`Testing orders endpoint with session: ${sessionId}`, 'info');
+                
+                const response = await fetch(`/api/customer/orders/session/${sessionId}`, {
+                    headers: headers
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Orders endpoint success: Found ${data.length} orders`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    log(`Orders endpoint failed: ${response.status} - ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`Orders endpoint error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCartEndpoint() {
+            try {
+                await window.sessionManager.initialize();
+                const headers = window.sessionManager.getHeaders();
+                
+                log('Testing cart endpoint...', 'info');
+                
+                const response = await fetch('/api/customer/cart', {
+                    headers: headers
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Cart endpoint success: Found ${data.length} items`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    log(`Cart endpoint failed: ${response.status} - ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`Cart endpoint error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSessionValidation() {
+            try {
+                await window.sessionManager.initialize();
+                const sessionId = window.sessionManager.getSessionId();
+                
+                log(`Testing session validation for: ${sessionId}`, 'info');
+                
+                const response = await fetch(`/api/session/${sessionId}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        log('Session validation success: Session is valid', 'success');
+                    } else {
+                        log('Session validation failed: Session not found', 'warning');
+                    }
+                } else {
+                    log(`Session validation error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`Session validation error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded, initializing session manager...', 'info');
+            refreshSessionInfo();
+        });
+    </script>
+</body>
+</html>

@@ -32,28 +32,60 @@ const useSession = () => {
       setIsLoading(true);
       
       // Try to get existing session from localStorage backup
+      // Check for any existing session IDs and clean them up
       const backupSessionId = localStorage.getItem(`session-backup-${tableNumber}`);
-      
+      const oldSessionKey = `cart-session-id-${tableNumber}`;
+      const oldSessionId = localStorage.getItem(oldSessionKey);
+
+      // Clean up any old session storage keys and global variables
+      if (oldSessionId) {
+        console.log('🧹 Cleaning up old session storage:', oldSessionId);
+        localStorage.removeItem(oldSessionKey);
+      }
+
+      // Clear any global session variables that might cause conflicts
+      (window as any).__currentSessionId = null;
+
+      // Clean up any other potential session storage keys
+      const additionalKeys = [
+        `session-${tableNumber}`,
+        'currentSessionId',
+        '__sessionId'
+      ];
+
+      additionalKeys.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) {
+          console.log(`🧹 Cleaning up additional storage key: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
+
       if (backupSessionId) {
         // Validate the backup session with server
-        const validateResponse = await fetch(`/api/session/${backupSessionId}`);
-        
-        if (validateResponse.ok) {
-          const validateData = await validateResponse.json();
-          
-          if (validateData.success && validateData.session.status === 'active') {
-            setSessionId(backupSessionId);
+        try {
+          const validateResponse = await fetch(`/api/session/${backupSessionId}`);
 
-            // Set global session ID for API requests
-            (window as any).__currentSessionId = backupSessionId;
+          if (validateResponse.ok) {
+            const validateData = await validateResponse.json();
 
-            console.log(`Restored session from backup: ${backupSessionId}`);
-            setIsLoading(false);
-            return;
+            if (validateData.success && validateData.session.status === 'active') {
+              setSessionId(backupSessionId);
+
+              // Set global session ID for API requests
+              (window as any).__currentSessionId = backupSessionId;
+
+              console.log(`✅ Restored session from backup: ${backupSessionId}`);
+              setIsLoading(false);
+              return;
+            }
           }
+        } catch (error) {
+          console.warn('Failed to validate backup session:', error);
         }
-        
+
         // Remove invalid backup
+        console.log('🧹 Removing invalid backup session:', backupSessionId);
         localStorage.removeItem(`session-backup-${tableNumber}`);
       }
 
@@ -356,12 +388,41 @@ export function useCart() {
       const serviceFee = subtotal * 0.1;
       const total = subtotal + serviceFee;
 
-      const orderItems = cartItems.map(item => ({
-        menuItemId: item.menuItem.id,
-        quantity: item.quantity,
-        price: item.menuItem.price,
-        itemName: item.menuItem.name,
-      }));
+      const orderItems = cartItems.map(item => {
+        const basePrice = parseFloat(item.menuItem.price);
+        let customizationPrice = 0;
+
+        // Calculate customization price
+        if (item.menuItem.customizationOptions && item.customizations) {
+          const customizationOptions = item.menuItem.customizationOptions;
+          const selectedCustomizations = item.customizations;
+
+          customizationOptions.forEach((option: any) => {
+            const selectedValue = selectedCustomizations[option.id];
+
+            if (option.type === 'checkbox' && selectedValue) {
+              customizationPrice += option.price || 0;
+            } else if (option.type === 'radio' && selectedValue && option.options) {
+              const selectedOption = option.options.find((opt: any) => opt.id === selectedValue);
+              if (selectedOption) {
+                customizationPrice += selectedOption.price || 0;
+              }
+            }
+          });
+        }
+
+        const totalItemPrice = basePrice + customizationPrice;
+
+        return {
+          menuItemId: item.menuItem.id,
+          quantity: item.quantity,
+          price: totalItemPrice.toFixed(2),
+          itemName: item.menuItem.name,
+          customizations: item.customizations || {},
+          specialInstructions: item.specialInstructions || '',
+          customizationCost: customizationPrice.toFixed(2),
+        };
+      });
 
       console.log("Creating order with items:", orderItems);
       console.log("Session ID:", sessionId);
@@ -424,7 +485,40 @@ export function useCart() {
 
   const getTotalPrice = () => {
     return cartItems.reduce((total, item) => {
-      return total + parseFloat(item.menuItem.price) * item.quantity;
+      const basePrice = parseFloat(item.menuItem.price);
+
+      // Use stored customization cost if available, otherwise calculate
+      let customizationPrice = 0;
+      if (item.customizationCost) {
+        customizationPrice = parseFloat(item.customizationCost);
+        console.log(`🧮 Using stored customizationCost for ${item.menuItem.name}: $${customizationPrice}`);
+      } else if (item.menuItem.customizationOptions && item.customizations) {
+        // Fallback to calculation if customizationCost is not stored
+        console.log(`🧮 Calculating customizationCost for ${item.menuItem.name} (no stored cost)`);
+        const customizationOptions = item.menuItem.customizationOptions;
+        const selectedCustomizations = item.customizations;
+
+        customizationOptions.forEach((option: any) => {
+          const selectedValue = selectedCustomizations[option.id];
+
+          if (option.type === 'checkbox' && selectedValue) {
+            customizationPrice += option.price || 0;
+          } else if (option.type === 'radio' && selectedValue && option.options) {
+            const selectedOption = option.options.find((opt: any) => opt.id === selectedValue);
+            if (selectedOption) {
+              customizationPrice += selectedOption.price || 0;
+            }
+          }
+        });
+        console.log(`🧮 Calculated customizationCost for ${item.menuItem.name}: $${customizationPrice}`);
+      } else {
+        console.log(`🧮 No customizations for ${item.menuItem.name}`);
+      }
+
+      const itemTotal = (basePrice + customizationPrice) * item.quantity;
+      console.log(`🧮 Item total for ${item.menuItem.name}: $${basePrice} + $${customizationPrice} × ${item.quantity} = $${itemTotal}`);
+
+      return total + itemTotal;
     }, 0);
   };
 

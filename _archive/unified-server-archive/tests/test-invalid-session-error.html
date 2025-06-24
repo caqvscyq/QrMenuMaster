@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Invalid Session Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 5px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 5px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Test Invalid Session Error Response</h1>
+    
+    <button onclick="testInvalidSession()">Test Invalid Session ID</button>
+    <button onclick="testValidSession()">Test Valid Session ID</button>
+    
+    <div id="result"></div>
+
+    <script>
+        async function testInvalidSession() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testing invalid session ID...</p>';
+            
+            try {
+                const response = await fetch('/api/customer/orders/session/session-1750270512532-o6bq6imxf', {
+                    method: 'GET',
+                    headers: {
+                        'X-Session-ID': 'session-A1-1750276752084-dy3v8gyz8',
+                        'X-Table-Number': 'A1'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Response (Status: ${response.status})</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testValidSession() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testing valid session ID...</p>';
+            
+            try {
+                const response = await fetch('/api/customer/orders/session/session-A1-1750276752084-dy3v8gyz8', {
+                    method: 'GET',
+                    headers: {
+                        'X-Session-ID': 'session-A1-1750276752084-dy3v8gyz8',
+                        'X-Table-Number': 'A1'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>Success (Status: ${response.status})</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>Response (Status: ${response.status})</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

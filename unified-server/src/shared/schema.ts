@@ -98,6 +98,7 @@ export const orderItems = pgTable("order_items", {
   itemName: text("item_name").notNull(),
   customizations: json("customizations").default('{}'), // Selected customizations
   specialInstructions: text("special_instructions"), // Additional notes
+  customizationCost: decimal("customization_cost", { precision: 10, scale: 2 }).default("0.00"), // Total cost of customizations
   createdAt: timestamp("created_at").defaultNow(),
 });
 

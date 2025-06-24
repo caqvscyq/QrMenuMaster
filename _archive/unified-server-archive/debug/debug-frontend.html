@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background-color: #28a745; }
+        .status-offline { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Frontend Debug Tool</h1>
+        
+        <div class="section">
+            <h2>🌐 Server Status</h2>
+            <div id="server-status">
+                <span class="status-indicator status-offline"></span>
+                <span>Checking server status...</span>
+            </div>
+            <button class="test-button" onclick="checkServerStatus()">Refresh Status</button>
+        </div>
+
+        <div class="section">
+            <h2>📡 API Endpoint Tests</h2>
+            <button class="test-button" onclick="testCustomerAPI()">Test Customer API</button>
+            <button class="test-button" onclick="testAdminAPI()">Test Admin API</button>
+            <button class="test-button" onclick="testCartFunctionality()">Test Cart</button>
+            <button class="test-button" onclick="testOrderCreation()">Test Order Creation</button>
+            <div id="api-results" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>🗄️ Database Connection Test</h2>
+            <button class="test-button" onclick="testDatabaseConnection()">Test Database</button>
+            <div id="db-results" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔌 WebSocket Connection Test</h2>
+            <button class="test-button" onclick="testWebSocket()">Test Socket.IO</button>
+            <div id="websocket-results" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>🛒 Frontend Functionality Test</h2>
+            <button class="test-button" onclick="testFrontendFunctions()">Test Frontend</button>
+            <div id="frontend-results" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>📊 System Information</h2>
+            <div id="system-info" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = 'debug-session-' + Date.now();
+        let adminToken = null;
+
+        // Utility functions
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            return `[${timestamp}] ${prefix} ${message}`;
+        }
+
+        function updateResult(elementId, content) {
+            document.getElementById(elementId).textContent = content;
+        }
+
+        function appendResult(elementId, content) {
+            const element = document.getElementById(elementId);
+            element.textContent += content + '\n';
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // Server status check
+        async function checkServerStatus() {
+            const statusElement = document.getElementById('server-status');
+            
+            try {
+                const response = await fetch('/api/customer/health');
+                if (response.ok) {
+                    statusElement.innerHTML = '<span class="status-indicator status-online"></span><span class="success">Server Online</span>';
+                } else {
+                    statusElement.innerHTML = '<span class="status-indicator status-warning"></span><span class="warning">Server Issues</span>';
+                }
+            } catch (error) {
+                statusElement.innerHTML = '<span class="status-indicator status-offline"></span><span class="error">Server Offline</span>';
+            }
+        }
+
+        // Test customer API endpoints
+        async function testCustomerAPI() {
+            updateResult('api-results', '');
+            appendResult('api-results', log('Testing Customer API endpoints...'));
+
+            try {
+                // Test menu endpoint
+                const menuResponse = await fetch('/api/customer/menu');
+                const menuData = await menuResponse.json();
+                appendResult('api-results', log(`Menu API: ${menuData.length} items loaded`, 'success'));
+
+                // Test specific menu item
+                const itemResponse = await fetch('/api/customer/menu/1');
+                const itemData = await itemResponse.json();
+                appendResult('api-results', log(`Menu Item API: ${itemData.name} loaded`, 'success'));
+
+            } catch (error) {
+                appendResult('api-results', log(`Customer API Error: ${error.message}`, 'error'));
+            }
+        }
+
+        // Test admin API endpoints
+        async function testAdminAPI() {
+            appendResult('api-results', log('Testing Admin API endpoints...'));
+
+            try {
+                // Test admin login
+                const loginResponse = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' })
+                });
+
+                if (loginResponse.ok) {
+                    const loginData = await loginResponse.json();
+                    adminToken = loginData.token;
+                    appendResult('api-results', log('Admin login successful', 'success'));
+
+                    // Test admin endpoints
+                    const categoriesResponse = await fetch('/api/admin/categories', {
+                        headers: { 'Authorization': `Bearer ${adminToken}` }
+                    });
+                    const categoriesData = await categoriesResponse.json();
+                    appendResult('api-results', log(`Admin Categories: ${categoriesData.length} loaded`, 'success'));
+
+                    const menuItemsResponse = await fetch('/api/admin/menu-items', {
+                        headers: { 'Authorization': `Bearer ${adminToken}` }
+                    });
+                    const menuItemsData = await menuItemsResponse.json();
+                    appendResult('api-results', log(`Admin Menu Items: ${menuItemsData.length} loaded`, 'success'));
+
+                } else {
+                    appendResult('api-results', log('Admin login failed', 'error'));
+                }
+
+            } catch (error) {
+                appendResult('api-results', log(`Admin API Error: ${error.message}`, 'error'));
+            }
+        }
+
+        // Test cart functionality
+        async function testCartFunctionality() {
+            appendResult('api-results', log('Testing Cart functionality...'));
+
+            try {
+                // Add item to cart
+                const addResponse = await fetch('/api/customer/cart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': sessionId
+                    },
+                    body: JSON.stringify({ menuItemId: 1, quantity: 2 })
+                });
+
+                if (addResponse.ok) {
+                    const cartData = await addResponse.json();
+                    appendResult('api-results', log(`Cart: Added item, ${cartData.length} items in cart`, 'success'));
+
+                    // Get cart
+                    const getResponse = await fetch('/api/customer/cart', {
+                        headers: { 'X-Session-ID': sessionId }
+                    });
+                    const getCartData = await getResponse.json();
+                    appendResult('api-results', log(`Cart: Retrieved ${getCartData.length} items`, 'success'));
+
+                } else {
+                    appendResult('api-results', log('Cart: Failed to add item', 'error'));
+                }
+
+            } catch (error) {
+                appendResult('api-results', log(`Cart Error: ${error.message}`, 'error'));
+            }
+        }
+
+        // Test order creation
+        async function testOrderCreation() {
+            appendResult('api-results', log('Testing Order creation...'));
+
+            try {
+                const orderResponse = await fetch('/api/customer/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': sessionId
+                    },
+                    body: JSON.stringify({
+                        order: {
+                            customerName: 'Debug Test',
+                            customerPhone: '+1-555-DEBUG',
+                            tableNumber: 'Debug Table',
+                            notes: 'Debug order test',
+                            subtotal: '11.98',
+                            serviceFee: '0.00',
+                            total: '11.98'
+                        },
+                        items: [{
+                            menuItemId: 1,
+                            quantity: 2,
+                            price: '5.99',
+                            itemName: 'Test Item'
+                        }]
+                    })
+                });
+
+                if (orderResponse.ok) {
+                    const orderData = await orderResponse.json();
+                    appendResult('api-results', log(`Order: Created order #${orderData.id}`, 'success'));
+                } else {
+                    const errorData = await orderResponse.json();
+                    appendResult('api-results', log(`Order: Failed - ${errorData.message}`, 'error'));
+                }
+
+            } catch (error) {
+                appendResult('api-results', log(`Order Error: ${error.message}`, 'error'));
+            }
+        }
+
+        // Test database connection
+        async function testDatabaseConnection() {
+            updateResult('db-results', '');
+            appendResult('db-results', log('Testing database connection...'));
+
+            try {
+                // This will test if the API can connect to database
+                const response = await fetch('/api/customer/menu');
+                if (response.ok) {
+                    const data = await response.json();
+                    appendResult('db-results', log('Database connection: OK', 'success'));
+                    appendResult('db-results', log(`Retrieved ${data.length} menu items from database`, 'success'));
+                    
+                    // Show sample data
+                    if (data.length > 0) {
+                        appendResult('db-results', log(`Sample item: ${data[0].name} - $${data[0].price}`, 'info'));
+                    }
+                } else {
+                    appendResult('db-results', log('Database connection: Failed', 'error'));
+                }
+            } catch (error) {
+                appendResult('db-results', log(`Database Error: ${error.message}`, 'error'));
+            }
+        }
+
+        // Test WebSocket connection
+        function testWebSocket() {
+            updateResult('websocket-results', '');
+            appendResult('websocket-results', log('Testing WebSocket connection...'));
+
+            try {
+                const socket = io();
+                
+                socket.on('connect', () => {
+                    appendResult('websocket-results', log('WebSocket: Connected', 'success'));
+                    socket.emit('test', { message: 'Debug test' });
+                });
+
+                socket.on('disconnect', () => {
+                    appendResult('websocket-results', log('WebSocket: Disconnected', 'warning'));
+                });
+
+                socket.on('error', (error) => {
+                    appendResult('websocket-results', log(`WebSocket Error: ${error}`, 'error'));
+                });
+
+                // Test timeout
+                setTimeout(() => {
+                    if (!socket.connected) {
+                        appendResult('websocket-results', log('WebSocket: Connection timeout', 'error'));
+                    }
+                    socket.disconnect();
+                }, 5000);
+
+            } catch (error) {
+                appendResult('websocket-results', log(`WebSocket Error: ${error.message}`, 'error'));
+            }
+        }
+
+        // Test frontend functions
+        function testFrontendFunctions() {
+            updateResult('frontend-results', '');
+            appendResult('frontend-results', log('Testing frontend functionality...'));
+
+            // Check if main frontend elements exist
+            const tests = [
+                { name: 'Menu container', selector: '.menu-container' },
+                { name: 'Cart button', selector: '.cart-button' },
+                { name: 'Category filters', selector: '.category-filter' },
+                { name: 'Menu items', selector: '.menu-item' }
+            ];
+
+            tests.forEach(test => {
+                const element = document.querySelector(test.selector);
+                if (element) {
+                    appendResult('frontend-results', log(`${test.name}: Found`, 'success'));
+                } else {
+                    appendResult('frontend-results', log(`${test.name}: Not found`, 'warning'));
+                }
+            });
+
+            // Check JavaScript errors
+            if (window.onerror) {
+                appendResult('frontend-results', log('Error handler: Active', 'success'));
+            } else {
+                appendResult('frontend-results', log('Error handler: Not active', 'warning'));
+            }
+        }
+
+        // Initialize system info
+        function loadSystemInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                'URL': window.location.href,
+                'Session ID': sessionId,
+                'Local Storage': localStorage.length + ' items',
+                'Session Storage': sessionStorage.length + ' items',
+                'Cookies': document.cookie ? 'Enabled' : 'Disabled',
+                'JavaScript': 'Enabled',
+                'WebSocket Support': typeof WebSocket !== 'undefined' ? 'Yes' : 'No'
+            };
+
+            let infoText = '';
+            Object.entries(info).forEach(([key, value]) => {
+                infoText += `${key}: ${value}\n`;
+            });
+
+            updateResult('system-info', infoText);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            checkServerStatus();
+            loadSystemInfo();
+        });
+
+        // Global error handler
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Global Error:', msg, 'at', url, ':', lineNo);
+            return false;
+        };
+    </script>
+
+    <!-- Include Socket.IO if available -->
+    <script src="/socket.io/socket.io.js"></script>
+</body>
+</html>

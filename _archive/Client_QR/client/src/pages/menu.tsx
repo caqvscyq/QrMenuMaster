@@ -6,7 +6,7 @@ import { MenuItemCard } from "@/components/menu-item-card";
 import { CartModal } from "@/components/cart-modal";
 import { OrderTrackingModal } from "@/components/order-tracking-modal";
 import { RecommendationModal } from "@/components/recommendation-modal";
-import { useCart } from "@/hooks/use-cart-db";
+import { useCart } from "@/hooks/use-cart";
 import { useQuery } from "@tanstack/react-query";
 import { MenuItem } from "@shared/schema";
 

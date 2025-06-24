@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .debug {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Admin Login Test</h1>
+        
+        <form id="testForm">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" value="admin" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="admin123" required>
+            </div>
+            
+            <button type="submit" id="testBtn">Test Login</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        console.log('🚀 Test page loaded');
+        
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const testBtn = document.getElementById('testBtn');
+            
+            console.log('🔐 Starting login test...');
+            showResult('Testing admin login...', 'info');
+            
+            testBtn.disabled = true;
+            testBtn.textContent = 'Testing...';
+            
+            try {
+                console.log('📡 Making API request...');
+                showResult('Making API request to /api/admin/auth/login...', 'debug');
+                
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+                
+                console.log('📊 Response status:', response.status);
+                showResult(`Response status: ${response.status}`, 'debug');
+                
+                const data = await response.json();
+                console.log('📄 Response data:', data);
+                
+                if (response.ok) {
+                    const message = `✅ LOGIN SUCCESSFUL!
+                    
+User: ${data.user.username}
+Role: ${data.user.role}
+Shop ID: ${data.user.shopId}
+Token: ${data.token ? 'Present' : 'Missing'}
+
+Full response:
+${JSON.stringify(data, null, 2)}`;
+                    
+                    showResult(message, 'success');
+                    
+                    // Test authenticated endpoint
+                    console.log('🔍 Testing authenticated endpoint...');
+                    try {
+                        const statsResponse = await fetch('/api/admin/stats', {
+                            headers: {
+                                'Authorization': `Bearer ${data.token}`
+                            }
+                        });
+                        
+                        const statsData = await statsResponse.json();
+                        console.log('📊 Stats data:', statsData);
+                        
+                        const statsMessage = `
+🎯 AUTHENTICATED ENDPOINT TEST:
+Status: ${statsResponse.status}
+Stats: ${JSON.stringify(statsData, null, 2)}`;
+                        
+                        showResult(message + statsMessage, 'success');
+                        
+                    } catch (statsError) {
+                        console.error('❌ Stats test failed:', statsError);
+                        showResult(message + `\n\n❌ Stats endpoint test failed: ${statsError.message}`, 'success');
+                    }
+                    
+                } else {
+                    const message = `❌ LOGIN FAILED!
+                    
+Status: ${response.status}
+Message: ${data.message || 'Unknown error'}
+
+Full response:
+${JSON.stringify(data, null, 2)}`;
+                    
+                    showResult(message, 'error');
+                }
+                
+            } catch (error) {
+                console.error('🚨 Network error:', error);
+                const message = `🚨 NETWORK ERROR!
+                
+Error: ${error.message}
+Stack: ${error.stack}`;
+                
+                showResult(message, 'error');
+            }
+            
+            testBtn.disabled = false;
+            testBtn.textContent = 'Test Login';
+        });
+        
+        console.log('✅ Event listeners added');
+        showResult('Ready to test admin login. Click the button above.', 'info');
+    </script>
+</body>
+</html>

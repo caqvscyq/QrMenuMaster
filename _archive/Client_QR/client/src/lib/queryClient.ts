@@ -38,11 +38,11 @@ export async function apiRequest(
         }
       }
 
-      // Add session headers for authenticated endpoints
+      // Add session headers for authenticated endpoints (lowercase to match unified-server)
       if (url.includes('/cart') || url.includes('/orders')) {
-        headers["X-Session-ID"] = sessionId;
+        headers["x-session-id"] = sessionId;
         if (tableNumber) {
-          headers["X-Table-Number"] = tableNumber;
+          headers["x-table-number"] = tableNumber;
         }
       }
     }

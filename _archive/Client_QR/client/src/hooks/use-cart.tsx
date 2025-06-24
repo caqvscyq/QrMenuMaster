@@ -185,14 +185,22 @@ export function useCart() {
   }
 
   const addToCartMutation = useMutation({
-    mutationFn: async (menuItem: MenuItem) => {
+    mutationFn: async ({ menuItem, customizations, specialInstructions, quantity }: {
+      menuItem: MenuItem;
+      customizations?: any;
+      specialInstructions?: string;
+      quantity?: number;
+    }) => {
       if (!sessionId) {
         throw new Error("No session ID available for cart operation");
       }
       console.log("Adding item to cart with database session:", menuItem.id, "sessionId:", sessionId);
+      console.log("Customizations:", customizations);
       const response = await apiRequest("POST", "/api/customer/cart", {
         menuItemId: menuItem.id,
-        quantity: 1,
+        quantity: quantity || 1,
+        customizations: customizations || {},
+        specialInstructions: specialInstructions || '',
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -242,12 +250,41 @@ export function useCart() {
       const serviceFee = subtotal * 0.1;
       const total = subtotal + serviceFee;
 
-      const orderItems = cartItems.map(item => ({
-        menuItemId: item.menuItem.id,
-        quantity: item.quantity,
-        price: item.menuItem.price,
-        itemName: item.menuItem.name,
-      }));
+      const orderItems = cartItems.map(item => {
+        const basePrice = parseFloat(item.menuItem.price);
+        let customizationPrice = 0;
+
+        // Calculate customization price
+        if (item.menuItem.customizationOptions && item.customizations) {
+          const customizationOptions = item.menuItem.customizationOptions;
+          const selectedCustomizations = item.customizations;
+
+          customizationOptions.forEach((option: any) => {
+            const selectedValue = selectedCustomizations[option.id];
+
+            if (option.type === 'checkbox' && selectedValue) {
+              customizationPrice += option.price || 0;
+            } else if (option.type === 'radio' && selectedValue && option.options) {
+              const selectedOption = option.options.find((opt: any) => opt.id === selectedValue);
+              if (selectedOption) {
+                customizationPrice += selectedOption.price || 0;
+              }
+            }
+          });
+        }
+
+        const totalItemPrice = basePrice + customizationPrice;
+
+        return {
+          menuItemId: item.menuItem.id,
+          quantity: item.quantity,
+          price: totalItemPrice.toFixed(2),
+          itemName: item.menuItem.name,
+          customizations: item.customizations || {},
+          specialInstructions: item.specialInstructions || '',
+          customizationCost: customizationPrice.toFixed(2),
+        };
+      });
 
       console.log("Creating order with items:", orderItems);
       console.log("Session ID:", sessionId);
@@ -280,8 +317,8 @@ export function useCart() {
     },
   });
 
-  const addToCart = (menuItem: MenuItem) => {
-    addToCartMutation.mutate(menuItem);
+  const addToCart = (menuItem: MenuItem, customizations?: any, specialInstructions?: string, quantity?: number) => {
+    addToCartMutation.mutate({ menuItem, customizations, specialInstructions, quantity });
   };
 
   const updateQuantity = (menuItemId: number, quantity: number) => {
@@ -302,7 +339,11 @@ export function useCart() {
 
   const getTotalPrice = () => {
     return cartItems.reduce((total, item) => {
-      return total + parseFloat(item.menuItem.price) * item.quantity;
+      const basePrice = parseFloat(item.menuItem.price);
+      // Use stored customization cost instead of recalculating
+      const customizationPrice = parseFloat(item.customizationCost || '0');
+
+      return total + (basePrice + customizationPrice) * item.quantity;
     }, 0);
   };
 

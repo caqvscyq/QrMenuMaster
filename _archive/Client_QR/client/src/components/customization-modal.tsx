@@ -155,11 +155,11 @@ export function CustomizationModal({ isOpen, onClose, item, onAddToCart }: Custo
 
           {/* Special Instructions */}
           <div className="space-y-3">
-            <h4 className="font-medium text-gray-900">特殊要求</h4>
+            <h4 className="font-medium text-gray-900">Special Instructions</h4>
             <textarea
               value={specialInstructions}
               onChange={(e) => setSpecialInstructions(e.target.value)}
-              placeholder="請輸入特殊要求..."
+              placeholder="Enter special instructions..."
               className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={3}
             />
@@ -172,7 +172,7 @@ export function CustomizationModal({ isOpen, onClose, item, onAddToCart }: Custo
             onClick={handleAddToCart}
             className="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            加入購物車 - ${calculateTotalPrice().toFixed(2)}
+            Add to Cart - ${calculateTotalPrice().toFixed(2)}
           </button>
         </div>
       </div>

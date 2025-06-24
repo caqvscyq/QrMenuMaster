@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffe6e6; border-left: 4px solid #ff0000; }
+        .success { background: #e6ffe6; border-left: 4px solid #00aa00; }
+        .info { background: #e6f3ff; border-left: 4px solid #0066cc; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        #sessionInfo { background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>QR Menu Session Flow Test</h1>
+    
+    <div id="sessionInfo">
+        <strong>Current Session:</strong> <span id="currentSession">None</span><br>
+        <strong>Table Number:</strong> <span id="tableNumber">None</span><br>
+        <strong>Status:</strong> <span id="sessionStatus">Not initialized</span>
+    </div>
+
+    <div>
+        <button onclick="createSession()">Create New Session</button>
+        <button onclick="testMenu()">Test Menu (No Auth)</button>
+        <button onclick="testCart()">Test Cart (Requires Auth)</button>
+        <button onclick="addToCart()">Add Item to Cart</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <div id="logs"></div>
+
+    <script>
+        let currentSessionId = null;
+        let currentTableNumber = null;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logs.appendChild(logDiv);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateSessionInfo() {
+            document.getElementById('currentSession').textContent = currentSessionId || 'None';
+            document.getElementById('tableNumber').textContent = currentTableNumber || 'None';
+            document.getElementById('sessionStatus').textContent = currentSessionId ? 'Active' : 'Not initialized';
+        }
+
+        async function createSession() {
+            try {
+                log('Creating new session...', 'info');
+                
+                const tableNum = 'A' + Math.floor(Math.random() * 10 + 1);
+                
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tableNumber: tableNum,
+                        shopId: 1,
+                        expirationHours: 4
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentSessionId = data.session.id;
+                    currentTableNumber = data.session.tableNumber;
+                    updateSessionInfo();
+                    log(`✅ Session created successfully: ${currentSessionId}`, 'success');
+                    log(`Table: ${currentTableNumber}, Expires: ${data.session.expiresAt}`, 'info');
+                } else {
+                    log(`❌ Failed to create session: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error creating session: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMenu() {
+            try {
+                log('Testing menu access (no authentication required)...', 'info');
+                
+                const response = await fetch('/api/customer/menu');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Menu loaded successfully: ${data.length} items`, 'success');
+                } else {
+                    log(`❌ Menu loading failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error loading menu: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCart() {
+            try {
+                log('Testing cart access (requires authentication)...', 'info');
+                
+                if (!currentSessionId) {
+                    log('❌ No session ID available. Create a session first.', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/customer/cart', {
+                    headers: {
+                        'X-Session-ID': currentSessionId
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Cart loaded successfully: ${data.length} items`, 'success');
+                } else {
+                    log(`❌ Cart loading failed (${response.status}): ${data.message}`, 'error');
+                    if (response.status === 401) {
+                        log('Session may be expired or invalid. Try creating a new session.', 'info');
+                    }
+                }
+            } catch (error) {
+                log(`❌ Error loading cart: ${error.message}`, 'error');
+            }
+        }
+
+        async function addToCart() {
+            try {
+                log('Adding item to cart...', 'info');
+                
+                if (!currentSessionId) {
+                    log('❌ No session ID available. Create a session first.', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/customer/cart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': currentSessionId
+                    },
+                    body: JSON.stringify({
+                        menuItemId: 1,
+                        quantity: 1
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Item added to cart successfully. Cart now has ${data.length} items`, 'success');
+                } else {
+                    log(`❌ Failed to add item to cart (${response.status}): ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error adding to cart: ${error.message}`, 'error');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            log('Page loaded. Click "Create New Session" to start testing.', 'info');
+            updateSessionInfo();
+        };
+    </script>
+</body>
+</html>

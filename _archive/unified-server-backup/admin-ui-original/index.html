@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Menu Admin Dashboard</title>
+    <script>
+        // Debug: Log when page starts loading
+        console.log('🚀 Page loading started');
+
+        // Test if basic JavaScript works
+        window.addEventListener('load', function() {
+            console.log('✅ Page loaded successfully');
+            console.log('🔍 Testing basic functionality...');
+
+            // Test if we can access DOM elements
+            const loginForm = document.getElementById('login');
+            console.log('📝 Login form found:', loginForm ? 'Yes' : 'No');
+
+            if (loginForm) {
+                console.log('🎯 Adding event listener to form');
+            }
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #fcc;
+        }
+
+        .success {
+            background: #efe;
+            color: #363;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #cfc;
+        }
+
+        .demo-creds {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .demo-creds h4 {
+            color: #495057;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .demo-creds p {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin: 0.25rem 0;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e1e5e9;
+        }
+
+        .nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .nav-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            color: #333;
+            text-align: center;
+            transition: background-color 0.3s;
+            border: 1px solid #e9ecef;
+        }
+
+        .nav-item:hover {
+            background: #e9ecef;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .content {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .table th {
+            background: #e9ecef;
+            font-weight: 600;
+        }
+
+        .status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status.available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.occupied {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Form -->
+        <div id="loginForm">
+            <div class="logo">
+                <h1>🍽️ QR Menu Admin</h1>
+                <p>Restaurant Management Dashboard</p>
+            </div>
+
+            <div id="message"></div>
+
+            <form id="login" onsubmit="return false;">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+
+                <button type="submit" class="btn" id="loginBtn">Sign In</button>
+            </form>
+
+            <div class="demo-creds">
+                <h4>Demo Credentials:</h4>
+                <p><strong>Username:</strong> admin</p>
+                <p><strong>Password:</strong> admin123</p>
+                <button onclick="testLogin()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">🧪 Test Direct Login</button>
+                <button onclick="testJavaScript()" style="margin-top: 5px; padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Test JavaScript</button>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div class="header">
+                <h2>Admin Dashboard</h2>
+                <button class="btn" id="logoutBtn" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
+            </div>
+
+            <div class="nav">
+                <a href="#" class="nav-item active" data-section="tables">Table Management</a>
+                <a href="#" class="nav-item" data-section="orders">Orders</a>
+                <a href="#" class="nav-item" data-section="menu">Menu Items</a>
+                <a href="#" class="nav-item" data-section="stats">Statistics</a>
+            </div>
+
+            <div class="content">
+                <div id="content-area">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global error handler
+        window.addEventListener('error', function(e) {
+            console.error('🚨 JavaScript Error:', e.error);
+            console.error('🚨 Error message:', e.message);
+            console.error('🚨 Error location:', e.filename + ':' + e.lineno + ':' + e.colno);
+            alert('JavaScript Error: ' + e.message + '\nCheck console for details.');
+        });
+
+        // Unhandled promise rejection handler
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('🚨 Unhandled Promise Rejection:', e.reason);
+            alert('Promise Error: ' + e.reason + '\nCheck console for details.');
+        });
+
+        console.log('🚀 Admin dashboard script loaded');
+        console.log('🌐 Current URL:', window.location.href);
+        console.log('🔧 User Agent:', navigator.userAgent);
+
+        // Debug: Check if functions are defined
+        console.log('🔍 Function availability check:');
+        console.log('  - testLogin:', typeof window.testLogin);
+        console.log('  - testJavaScript:', typeof window.testJavaScript);
+
+        let authToken = localStorage.getItem('admin_token');
+        let currentUser = null;
+
+        console.log('🔑 Existing auth token:', authToken ? 'Found' : 'None');
+
+        // Test basic JavaScript functionality
+        try {
+            console.log('🧪 Testing basic JavaScript...');
+            const testDiv = document.createElement('div');
+            testDiv.innerHTML = 'Test';
+            console.log('✅ DOM manipulation works');
+
+            const testFetch = typeof fetch !== 'undefined';
+            console.log('✅ Fetch API available:', testFetch);
+
+            const testLocalStorage = typeof localStorage !== 'undefined';
+            console.log('✅ LocalStorage available:', testLocalStorage);
+
+        } catch (error) {
+            console.error('❌ Basic JavaScript test failed:', error);
+            alert('Basic JavaScript test failed: ' + error.message);
+        }
+
+        // Check if already logged in
+        if (authToken) {
+            console.log('🔍 Checking existing auth token');
+            try {
+                checkAuth();
+            } catch (error) {
+                console.error('❌ checkAuth failed:', error);
+            }
+        }
+
+        // Ensure the script runs after the page loads
+        window.addEventListener('load', function() {
+            console.log('🎯 Page loaded, setting up login form');
+
+            try {
+                // Check if DOM is ready
+                console.log('🔍 Document ready state:', document.readyState);
+                console.log('🔍 Document body:', document.body ? 'Found' : 'Missing');
+
+                const loginForm = document.getElementById('login');
+                console.log('🔍 Login form element:', loginForm);
+
+                if (!loginForm) {
+                    console.error('❌ Login form not found!');
+                    console.log('🔍 Available elements with IDs:');
+                    const elementsWithIds = document.querySelectorAll('[id]');
+                    elementsWithIds.forEach(el => {
+                        console.log('  - ID:', el.id, 'Tag:', el.tagName);
+                    });
+                    return;
+                }
+
+                console.log('✅ Login form found:', loginForm.tagName);
+                console.log('✅ Form action:', loginForm.action);
+                console.log('✅ Form method:', loginForm.method);
+
+            // Remove any existing event listeners and add new one
+            loginForm.onsubmit = async function(e) {
+                try {
+                    console.log('🔐 Form submit event triggered');
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    console.log('🔐 Login form submitted via JavaScript');
+                    console.log('🔐 Event object:', e);
+
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const loginBtn = document.getElementById('loginBtn');
+
+                console.log('📝 Login credentials:', { username, password: password ? '***' : 'empty' });
+
+                if (!username || !password) {
+                    showMessage('Please enter both username and password', 'error');
+                    return false;
+                }
+
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Signing in...';
+
+                try {
+                    console.log('🌐 Making API request to /api/admin/auth/login');
+
+                    const response = await fetch('/api/admin/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password }),
+                    });
+
+                    console.log('📡 API response status:', response.status);
+
+                    const data = await response.json();
+                    console.log('📄 API response data:', data);
+
+                    if (response.ok) {
+                        authToken = data.token;
+                        currentUser = data.user;
+                        localStorage.setItem('admin_token', authToken);
+                        showMessage('Login successful!', 'success');
+                        console.log('✅ Login successful, showing dashboard');
+                        showDashboard();
+                    } else {
+                        console.log('❌ Login failed:', data.message);
+                        showMessage(data.message || 'Login failed', 'error');
+                    }
+                } catch (error) {
+                    console.error('🚨 Network error:', error);
+                    showMessage('Network error. Please try again.', 'error');
+                }
+
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Sign In';
+
+                return false; // Prevent form submission
+
+                } catch (formError) {
+                    console.error('🚨 Form submission error:', formError);
+                    alert('Form submission error: ' + formError.message);
+                    return false;
+                }
+            };
+
+            console.log('✅ Login form event listener added');
+
+            } catch (setupError) {
+                console.error('🚨 Form setup error:', setupError);
+                alert('Form setup error: ' + setupError.message);
+            }
+        });
+
+        // Check authentication
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/admin/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                });
+
+                if (response.ok) {
+                    currentUser = await response.json();
+                    showDashboard();
+                } else {
+                    localStorage.removeItem('admin_token');
+                    authToken = null;
+                }
+            } catch (error) {
+                localStorage.removeItem('admin_token');
+                authToken = null;
+            }
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('dashboard').classList.add('active');
+            loadSection('tables');
+        }
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('admin_token');
+            authToken = null;
+            currentUser = null;
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('dashboard').classList.remove('active');
+            showMessage('Logged out successfully', 'success');
+        });
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // Update active nav item
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+
+                // Load section
+                const section = item.dataset.section;
+                loadSection(section);
+            });
+        });
+
+        // Load section content
+        async function loadSection(section) {
+            const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                switch (section) {
+                    case 'tables':
+                        await loadTables();
+                        break;
+                    case 'orders':
+                        await loadOrders();
+                        break;
+                    case 'menu':
+                        await loadMenuItems();
+                        break;
+                    case 'stats':
+                        await loadStats();
+                        break;
+                }
+            } catch (error) {
+                contentArea.innerHTML = `<div class="error">Error loading ${section}: ${error.message}</div>`;
+            }
+        }
+
+        // Load tables
+        async function loadTables() {
+            const response = await fetch('/api/admin/desks', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load tables');
+            }
+
+            const tables = await response.json();
+
+            let html = '<h3>Table Management</h3>';
+            html += '<table class="table">';
+            html += '<thead><tr><th>Table</th><th>Status</th><th>Current Order</th><th>Session</th></tr></thead>';
+            html += '<tbody>';
+
+            tables.forEach(table => {
+                const status = table.currentOrder ? 'occupied' : 'available';
+                const orderInfo = table.currentOrder ?
+                    `Order #${table.currentOrder.id} - $${table.currentOrder.total}` :
+                    'No active order';
+                const sessionInfo = table.currentOrder ?
+                    table.currentOrder.sessionId :
+                    'No session';
+
+                html += `
+                    <tr>
+                        <td>Table ${table.number}</td>
+                        <td><span class="status ${status}">${status.toUpperCase()}</span></td>
+                        <td>${orderInfo}</td>
+                        <td style="font-size: 0.8rem; color: #666;">${sessionInfo}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+
+            document.getElementById('content-area').innerHTML = html;
+        }
+
+        // Load orders
+        async function loadOrders() {
+            const response = await fetch('/api/admin/orders', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load orders');
+            }
+
+            const orders = await response.json();
+
+            let html = '<h3>Recent Orders</h3>';
+            html += '<table class="table">';
+            html += '<thead><tr><th>Order ID</th><th>Table</th><th>Status</th><th>Total</th><th>Created</th></tr></thead>';
+            html += '<tbody>';
+
+            orders.forEach(order => {
+                const createdAt = new Date(order.createdAt).toLocaleString();
+                html += `
+                    <tr>
+                        <td>#${order.id}</td>
+                        <td>Table ${order.tableNumber}</td>
+                        <td><span class="status ${order.status}">${order.status.toUpperCase()}</span></td>
+                        <td>$${order.total}</td>
+                        <td>${createdAt}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+
+            document.getElementById('content-area').innerHTML = html;
+        }
+
+        // Load menu items
+        async function loadMenuItems() {
+            const response = await fetch('/api/admin/menu-items', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load menu items');
+            }
+
+            const menuItems = await response.json();
+
+            let html = '<h3>Menu Items</h3>';
+            html += '<table class="table">';
+            html += '<thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Available</th></tr></thead>';
+            html += '<tbody>';
+
+            menuItems.forEach(item => {
+                const available = item.available ? 'Yes' : 'No';
+                html += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.categoryName || 'N/A'}</td>
+                        <td>$${item.price}</td>
+                        <td>${available}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+
+            document.getElementById('content-area').innerHTML = html;
+        }
+
+        // Load stats
+        async function loadStats() {
+            const response = await fetch('/api/admin/stats', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load statistics');
+            }
+
+            const stats = await response.json();
+
+            let html = '<h3>Restaurant Statistics</h3>';
+            html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">';
+
+            html += `
+                <div style="background: white; padding: 1rem; border-radius: 5px; text-align: center;">
+                    <h4 style="color: #667eea; margin-bottom: 0.5rem;">Total Orders</h4>
+                    <p style="font-size: 2rem; font-weight: bold; color: #333;">${stats.totalOrders || 0}</p>
+                </div>
+
+                <div style="background: white; padding: 1rem; border-radius: 5px; text-align: center;">
+                    <h4 style="color: #667eea; margin-bottom: 0.5rem;">Total Revenue</h4>
+                    <p style="font-size: 2rem; font-weight: bold; color: #333;">$${stats.totalRevenue || 0}</p>
+                </div>
+
+                <div style="background: white; padding: 1rem; border-radius: 5px; text-align: center;">
+                    <h4 style="color: #667eea; margin-bottom: 0.5rem;">Menu Items</h4>
+                    <p style="font-size: 2rem; font-weight: bold; color: #333;">${stats.totalMenuItems || 0}</p>
+                </div>
+
+                <div style="background: white; padding: 1rem; border-radius: 5px; text-align: center;">
+                    <h4 style="color: #667eea; margin-bottom: 0.5rem;">Tables</h4>
+                    <p style="font-size: 2rem; font-weight: bold; color: #333;">${stats.totalTables || 0}</p>
+                </div>
+            `;
+
+            html += '</div>';
+
+            document.getElementById('content-area').innerHTML = html;
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // Test JavaScript function - moved to global scope
+        window.testJavaScript = function() {
+            console.log('🔧 Test JavaScript button clicked');
+
+            try {
+                // Test basic functionality
+                alert('✅ JavaScript is working!\n\nConsole output:\n- Button click detected\n- Alert function works\n- Try/catch works');
+
+                // Test DOM manipulation
+                const messageDiv = document.getElementById('message');
+                if (messageDiv) {
+                    messageDiv.innerHTML = '<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 10px 0;">✅ JavaScript test successful! DOM manipulation works.</div>';
+                    console.log('✅ DOM manipulation successful');
+                } else {
+                    console.error('❌ Message div not found');
+                }
+
+                // Test form access
+                const loginForm = document.getElementById('login');
+                console.log('🔍 Login form in test:', loginForm);
+
+                if (loginForm) {
+                    console.log('✅ Can access login form');
+                    console.log('🔍 Form elements:', loginForm.elements.length);
+                } else {
+                    console.error('❌ Cannot access login form');
+                }
+
+            } catch (error) {
+                console.error('🚨 JavaScript test failed:', error);
+                alert('❌ JavaScript test failed: ' + error.message);
+            }
+        };
+
+        // Test login function - moved to global scope
+        window.testLogin = async function() {
+            console.log('🧪 Test login button clicked');
+
+            try {
+                showMessage('Testing direct login...', 'info');
+
+                console.log('🌐 Making direct API request to /api/admin/auth/login');
+
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' }),
+                });
+
+                console.log('📡 Direct API response status:', response.status);
+
+                const data = await response.json();
+                console.log('📄 Direct API response data:', data);
+
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('admin_token', authToken);
+                    showMessage('Direct login successful!', 'success');
+                    console.log('✅ Direct login successful, showing dashboard');
+                    showDashboard();
+                } else {
+                    console.log('❌ Direct login failed:', data.message);
+                    showMessage('Direct login failed: ' + (data.message || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('🚨 Direct login network error:', error);
+                showMessage('Direct login network error: ' + error.message, 'error');
+                alert('Direct login error: ' + error.message);
+            }
+        };
+
+        // Final check: Ensure functions are available globally
+        console.log('🔍 Final function check:');
+        console.log('  - window.testLogin:', typeof window.testLogin);
+        console.log('  - window.testJavaScript:', typeof window.testJavaScript);
+
+        if (typeof window.testLogin === 'undefined') {
+            console.error('❌ testLogin function not found in global scope');
+        } else {
+            console.log('✅ testLogin function is available');
+        }
+
+        if (typeof window.testJavaScript === 'undefined') {
+            console.error('❌ testJavaScript function not found in global scope');
+        } else {
+            console.log('✅ testJavaScript function is available');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Sessions</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        .container { max-width: 600px; margin: 0 auto; }
+        button { padding: 15px 30px; margin: 10px; font-size: 16px; cursor: pointer; }
+        .success { background: #28a745; color: white; border: none; border-radius: 5px; }
+        .danger { background: #dc3545; color: white; border: none; border-radius: 5px; }
+        .info { background: #17a2b8; color: white; border: none; border-radius: 5px; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear All Sessions</h1>
+        <p>This page will clear all stored sessions and give you a fresh start.</p>
+        
+        <div>
+            <button class="danger" onclick="clearAllSessions()">Clear All Sessions</button>
+            <button class="info" onclick="showStoredSessions()">Show Stored Sessions</button>
+            <button class="success" onclick="testFreshSession()">Test Fresh Session</button>
+        </div>
+
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log';
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logs.appendChild(logDiv);
+        }
+
+        function clearAllSessions() {
+            log('🧹 Clearing all stored sessions...');
+            
+            // Get all localStorage keys
+            const keys = Object.keys(localStorage);
+            let clearedCount = 0;
+            
+            // Clear all session-related keys
+            keys.forEach(key => {
+                if (key.includes('session') || key.includes('cart') || key.includes('database')) {
+                    localStorage.removeItem(key);
+                    log(`Removed: ${key}`);
+                    clearedCount++;
+                }
+            });
+            
+            // Clear sessionStorage too
+            sessionStorage.clear();
+            
+            log(`✅ Cleared ${clearedCount} session keys from localStorage`);
+            log('✅ Cleared all sessionStorage');
+            log('🔄 Please refresh the page to start with a clean session');
+        }
+
+        function showStoredSessions() {
+            log('🔍 Checking stored sessions...');
+            
+            const keys = Object.keys(localStorage);
+            const sessionKeys = keys.filter(key => 
+                key.includes('session') || key.includes('cart') || key.includes('database')
+            );
+            
+            if (sessionKeys.length === 0) {
+                log('✅ No session data found in localStorage');
+            } else {
+                log(`Found ${sessionKeys.length} session-related keys:`);
+                sessionKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    log(`${key}: ${value}`);
+                });
+            }
+            
+            // Check sessionStorage
+            const sessionStorageKeys = Object.keys(sessionStorage);
+            if (sessionStorageKeys.length === 0) {
+                log('✅ No data found in sessionStorage');
+            } else {
+                log(`Found ${sessionStorageKeys.length} keys in sessionStorage:`);
+                sessionStorageKeys.forEach(key => {
+                    log(`${key}: ${sessionStorage.getItem(key)}`);
+                });
+            }
+        }
+
+        async function testFreshSession() {
+            log('🧪 Testing fresh session creation...');
+            
+            try {
+                // Create a new session
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tableNumber: 'FRESH-TEST',
+                        shopId: 1
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`✅ Fresh session created: ${data.session.id}`);
+                    log(`Table: ${data.session.tableNumber}`);
+                    log(`Expires: ${data.session.expiresAt}`);
+                    
+                    // Test cart access with new session
+                    const cartResponse = await fetch('/api/customer/cart', {
+                        headers: {
+                            'X-Session-ID': data.session.id
+                        }
+                    });
+                    
+                    if (cartResponse.ok) {
+                        const cartData = await cartResponse.json();
+                        log(`✅ Cart access successful: ${cartData.length} items`);
+                    } else {
+                        log(`❌ Cart access failed: ${cartResponse.status}`);
+                    }
+                    
+                } else {
+                    log(`❌ Session creation failed: ${data.message}`);
+                }
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`);
+            }
+        }
+
+        // Auto-show stored sessions on load
+        window.onload = function() {
+            log('🔍 Session cleaner loaded');
+            showStoredSessions();
+        };
+    </script>
+</body>
+</html>

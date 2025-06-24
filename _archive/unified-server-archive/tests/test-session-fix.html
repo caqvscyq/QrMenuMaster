@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Authentication Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Session Authentication Fix Test</h1>
+    
+    <div class="test-section info">
+        <h3>Current URL Parameters</h3>
+        <p><strong>Table Number:</strong> <span id="tableNumber">--</span></p>
+        <p><strong>Current Session ID:</strong> <span id="currentSession">--</span></p>
+        <p><strong>URL:</strong> <span id="currentUrl">--</span></p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Actions</h3>
+        <button onclick="createNewSession()">Create New Session</button>
+        <button onclick="testCartAccess()">Test Cart Access</button>
+        <button onclick="testAddToCart()">Test Add to Cart</button>
+        <button onclick="clearSession()">Clear Session</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        
+        // Initialize page
+        function init() {
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table') || 'NOT_SET';
+            const currentUrl = window.location.href;
+            
+            document.getElementById('tableNumber').textContent = tableNumber;
+            document.getElementById('currentUrl').textContent = currentUrl;
+            
+            // Check for existing session
+            const sessionKey = `session-backup-${tableNumber}`;
+            const existingSession = localStorage.getItem(sessionKey);
+            if (existingSession) {
+                currentSessionId = existingSession;
+                document.getElementById('currentSession').textContent = existingSession;
+            }
+            
+            addResult(`Page loaded for table: ${tableNumber}`, 'info');
+            
+            if (tableNumber === 'NOT_SET') {
+                addResult('⚠️ No table parameter in URL. Try: ?table=1', 'error');
+            }
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        async function createNewSession() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const tableNumber = params.get('table');
+                
+                if (!tableNumber) {
+                    addResult('❌ No table number in URL. Add ?table=1 to URL', 'error');
+                    return;
+                }
+                
+                addResult(`Creating session for table ${tableNumber}...`, 'info');
+                
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tableNumber: tableNumber,
+                        shopId: 1,
+                        expirationHours: 4
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentSessionId = data.session.id;
+                    document.getElementById('currentSession').textContent = currentSessionId;
+                    
+                    // Store in localStorage
+                    const sessionKey = `session-backup-${tableNumber}`;
+                    localStorage.setItem(sessionKey, currentSessionId);
+                    
+                    addResult(`✅ Session created: ${currentSessionId}`, 'success');
+                } else {
+                    addResult(`❌ Failed to create session: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Error creating session: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testCartAccess() {
+            if (!currentSessionId) {
+                addResult('❌ No session ID. Create a session first.', 'error');
+                return;
+            }
+            
+            try {
+                addResult('Testing cart access...', 'info');
+                
+                const response = await fetch(`/api/cart/${currentSessionId}`, {
+                    headers: { 'X-Session-ID': currentSessionId }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Cart access successful! Items: ${data.length}`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    addResult(`❌ Cart access failed: ${response.status} ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Error accessing cart: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAddToCart() {
+            if (!currentSessionId) {
+                addResult('❌ No session ID. Create a session first.', 'error');
+                return;
+            }
+            
+            try {
+                addResult('Testing add to cart...', 'info');
+                
+                const response = await fetch('/api/cart', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': currentSessionId 
+                    },
+                    body: JSON.stringify({
+                        menuItemId: 1,
+                        quantity: 1
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Add to cart successful! Cart items: ${data.length}`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    addResult(`❌ Add to cart failed: ${response.status} ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Error adding to cart: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearSession() {
+            currentSessionId = null;
+            document.getElementById('currentSession').textContent = '--';
+            
+            // Clear from localStorage
+            const params = new URLSearchParams(window.location.search);
+            const tableNumber = params.get('table');
+            if (tableNumber) {
+                const sessionKey = `session-backup-${tableNumber}`;
+                localStorage.removeItem(sessionKey);
+            }
+            
+            addResult('Session cleared', 'info');
+        }
+        
+        // Initialize when page loads
+        init();
+    </script>
+</body>
+</html>
