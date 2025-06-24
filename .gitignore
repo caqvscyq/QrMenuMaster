@@ -125,4 +125,7 @@ backup/
 test-*.js
 debug-*.js
 *.test.js
-*.spec.js 
+*.spec.js
+
+# Serena AI Assistant files
+.serena/ 
