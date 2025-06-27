@@ -1,16 +1,10 @@
 import express from 'express';
 import { logger } from '../config/logger';
 import { DatabaseStorage } from '../services/database.service';
+import { adminAuth } from '../middleware/auth';
 
 const router = express.Router();
 const dbService = new DatabaseStorage();
-
-// Admin authentication middleware (placeholder)
-const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // TODO: Implement proper admin authentication
-  // For now, just pass through
-  next();
-};
 
 // Database status endpoint
 router.get('/db-status', adminAuth, async (req, res) => {
@@ -81,6 +75,46 @@ router.patch('/orders/:id', adminAuth, async (req, res) => {
   }
 });
 
+// Update order status (alternative endpoint for frontend compatibility)
+router.patch('/orders/:id/status', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    logger.info(`Admin: Updating order ${id} status to ${status} (via PATCH /status endpoint)`);
+    const updatedOrder = await dbService.updateOrderStatus(parseInt(id), 1, status);
+
+    if (updatedOrder) {
+      res.json(updatedOrder);
+    } else {
+      res.status(404).json({ message: 'Order not found' });
+    }
+  } catch (error) {
+    logger.error('Admin: Error updating order status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update order status (PUT method for frontend compatibility)
+router.put('/orders/:id/status', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    logger.info(`Admin: Updating order ${id} status to ${status} (via PUT /status endpoint)`);
+    const updatedOrder = await dbService.updateOrderStatus(parseInt(id), 1, status);
+
+    if (updatedOrder) {
+      res.json(updatedOrder);
+    } else {
+      res.status(404).json({ message: 'Order not found' });
+    }
+  } catch (error) {
+    logger.error('Admin: Error updating order status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get categories
 router.get('/categories', adminAuth, async (req, res) => {
   try {
@@ -129,6 +163,20 @@ router.get('/popular', adminAuth, async (req, res) => {
     res.json(popularItems);
   } catch (error) {
     logger.error('Admin: Error getting popular menu items via compatibility route:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get weekly top sales items
+router.get('/menu-items/weekly-top-sales', adminAuth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 5;
+    logger.info(`Admin: Getting weekly top sales items (limit: ${limit})`);
+
+    const weeklyTopSales = await dbService.getWeeklyTopSalesItems(1, limit); // Default to shop 1
+    res.json(weeklyTopSales);
+  } catch (error) {
+    logger.error('Admin: Error getting weekly top sales items:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -259,40 +307,131 @@ router.get('/desks', adminAuth, async (req, res) => {
   }
 });
 
+// Create new desk/table
+router.post('/desks', adminAuth, async (req, res) => {
+  try {
+    const { number, name, capacity, area } = req.body;
+
+    logger.info(`Admin: Creating new desk/table: ${name || number}`);
+
+    // Validate required fields
+    if (!number && !name) {
+      return res.status(400).json({ error: 'Table number or name is required' });
+    }
+
+    // Create the desk data
+    const deskData = {
+      name: name || number, // Use name if provided, otherwise use number
+      shopId: 1, // Default to shop 1
+      capacity: capacity || 4,
+      status: 'available' as const,
+    };
+
+    const newDesk = await dbService.createDesk(deskData);
+
+    logger.info(`Admin: Created desk/table: ${newDesk.name} (ID: ${newDesk.id})`);
+
+    res.status(201).json(newDesk);
+  } catch (error) {
+    logger.error('Admin: Error creating desk:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Toggle table status (available/occupied)
+router.post('/desks/:id/toggle-status', adminAuth, async (req, res) => {
+  try {
+    const deskId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    logger.info(`Admin: Toggling table ${deskId} status to ${status}`);
+
+    if (!status || !['available', 'occupied'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be either "available" or "occupied"' });
+    }
+
+    // Get the desk first to check if it exists
+    const desk = await dbService.getDesk(deskId, 1);
+    if (!desk) {
+      return res.status(404).json({ error: "Desk not found" });
+    }
+
+    // Update the desk status
+    const updatedDesk = await dbService.toggleDeskStatus(deskId, 1, status);
+
+    if (!updatedDesk) {
+      return res.status(404).json({ error: "Failed to update desk status" });
+    }
+
+    logger.info(`Admin: Updated table ${desk.name} status to ${status}`);
+
+    res.json({
+      success: true,
+      message: `Table ${desk.name} has been marked as ${status}`,
+      desk: updatedDesk
+    });
+  } catch (error) {
+    logger.error('Admin: Error toggling table status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Release table (complete orders and mark as available)
+router.post('/desks/:id/release', adminAuth, async (req, res) => {
+  try {
+    const deskId = parseInt(req.params.id);
+    logger.info(`Admin: Releasing table ${deskId}`);
+
+    // Get the desk first to check if it exists
+    const desk = await dbService.getDesk(deskId, 1);
+    if (!desk) {
+      return res.status(404).json({ error: "Desk not found" });
+    }
+
+    // Complete all pending orders for this desk
+    const completedOrders = await dbService.completeAndPayDeskOrders(deskId);
+
+    // Update the desk status to available
+    await dbService.updateDesk(deskId, 1, { status: 'available' });
+
+    logger.info(`Admin: Released table ${desk.name}, completed ${completedOrders.length} orders`);
+
+    res.json({
+      success: true,
+      message: `Table ${desk.name} has been released and is now available`,
+      completedOrders: completedOrders.length
+    });
+  } catch (error) {
+    logger.error('Admin: Error releasing table:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get analytics/stats
 router.get('/stats', adminAuth, async (req, res) => {
   try {
     logger.info('Admin: Getting statistics');
 
-    // Get basic statistics
+    // Use the more accurate SQL-based stats calculation
+    const stats = await dbService.getStats(1);
+
+    // Get additional data for backward compatibility if needed
     const orders = await dbService.getOrders(1);
-    const menuItems = await dbService.getMenuItems(1);
     const categories = await dbService.getCategories(1);
 
-    // Filter today's orders (assuming we want orders from today)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayOrders = orders.filter((order: any) => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= today;
-    });
-
-    const stats = {
-      // Frontend expects these field names
-      todayOrders: todayOrders.length,
-      revenue: orders.reduce((sum: number, order: any) => sum + parseFloat(order.total), 0),
-      activeCustomers: orders.filter((order: any) => order.status === 'pending' || order.status === 'preparing').length,
-      menuItemsCount: menuItems.length,
-      // Keep backward compatibility
+    const extendedStats = {
+      // Primary stats from accurate SQL queries
+      ...stats,
+      // Keep backward compatibility with additional stats
       totalOrders: orders.length,
       totalRevenue: orders.reduce((sum: number, order: any) => sum + parseFloat(order.total), 0),
       activeOrders: orders.filter((order: any) => order.status === 'pending' || order.status === 'preparing').length,
       completedOrders: orders.filter((order: any) => order.status === 'completed').length,
-      totalMenuItems: menuItems.length,
+      totalMenuItems: stats.menuItemsCount, // Use the accurate count
       totalCategories: categories.length
     };
 
-    res.json(stats);
+    res.json(extendedStats);
   } catch (error) {
     logger.error('Admin: Error getting statistics:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -305,38 +444,66 @@ router.post('/auth/login', async (req, res) => {
     const { username, password } = req.body;
     logger.info(`Admin: Login attempt for username: ${username}`);
 
-    // TODO: Implement proper authentication
-    // For now, return a mock response
-    if (username === 'admin' && password === 'admin') {
-      res.json({
-        token: 'mock-jwt-token',
-        user: {
-          id: 1,
-          username: 'admin',
-          role: 'admin',
-          shopId: 1
-        }
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid credentials' });
+    // Get user from database
+    const user = await dbService.getUserByUsername(username);
+    if (!user) {
+      logger.warn(`Login failed: User not found for username: ${username}`);
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    // Verify password
+    const bcrypt = require('bcrypt');
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      logger.warn(`Login failed: Invalid password for username: ${username}`);
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Check if user has admin/staff role
+    if (user.role !== 'admin' && user.role !== 'staff') {
+      logger.warn(`Login failed: User ${username} does not have admin privileges`);
+      return res.status(403).json({ message: 'Access denied: Admin privileges required' });
+    }
+
+    // Generate JWT token
+    const { generateToken } = await import('../middleware/auth');
+    const token = generateToken({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      shopId: user.shopId || 1
+    });
+
+    logger.info(`Login successful for admin user: ${username}`);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        shopId: user.shopId || 1
+      }
+    });
   } catch (error) {
     logger.error('Admin: Error during login:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-router.get('/auth/me', adminAuth, async (req, res) => {
+router.get('/auth/me', adminAuth, async (req: any, res) => {
   try {
     logger.info('Admin: Getting current user info');
 
-    // TODO: Implement proper user info retrieval
-    // For now, return a mock response
+    // User info is attached to request by adminAuth middleware
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
     res.json({
-      id: 1,
-      username: 'admin',
-      role: 'admin',
-      shopId: 1
+      id: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+      shopId: req.user.shopId
     });
   } catch (error) {
     logger.error('Admin: Error getting user info:', error);

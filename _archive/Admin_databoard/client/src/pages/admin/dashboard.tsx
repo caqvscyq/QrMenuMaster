@@ -102,20 +102,34 @@ export default function AdminDashboard() {
     },
   });
 
-  // Fetch popular menu items
+  // Fetch weekly top sales items
   const { data: popularItems, isLoading: popularItemsLoading } = useQuery<PopularMenuItem[]>({
-    queryKey: ["/api/admin/menu-items/popular"],
+    queryKey: ["/api/admin/menu-items/weekly-top-sales"],
     refetchInterval: 5000, // Poll every 5 seconds
     queryFn: async () => {
-      const response = await fetch("/api/admin/menu-items/popular?limit=3", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch popular menu items");
+      try {
+        const response = await fetch("/api/admin/menu-items/weekly-top-sales?limit=4", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        if (!response.ok) {
+          // If endpoint doesn't exist, fallback to popular items
+          if (response.status === 404) {
+            const fallbackResponse = await fetch("/api/admin/menu-items/popular?limit=4", {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            });
+            return fallbackResponse.ok ? await fallbackResponse.json() : [];
+          }
+          throw new Error("Failed to fetch weekly top sales items");
+        }
+        return response.json();
+      } catch (error) {
+        // Fallback for missing endpoint
+        return [];
       }
-      return response.json();
     },
   });
 
@@ -324,12 +338,12 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Popular Menu Items */}
+          {/* Weekly Top 5 Sales Items */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-semibold text-secondary-gray dark:text-white">
-                  Popular Menu Items
+                  Popular Items This Week
                 </CardTitle>
                 <Link href="/admin/menu">
                   <Button variant="ghost" size="sm" className="text-primary-orange hover:text-primary-orange/80">

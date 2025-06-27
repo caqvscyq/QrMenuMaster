@@ -6,20 +6,28 @@ A comprehensive QR code-based restaurant menu management system with unified ser
 
 ```
 QrMenuMaster/
-├── admin-client/              # Frontend application (React + TypeScript + Vite)
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── admin/        # Admin dashboard pages
-│   │   │   └── customer/     # Customer interface pages
-│   │   ├── components/       # Shared UI components
-│   │   └── hooks/           # Custom React hooks
-│   └── shared/              # Shared schemas and types
-├── unified-server/           # Backend server (Node.js + Express + TypeScript)
-│   ├── src/                 # Server source code
-│   ├── public/              # Built frontend assets
-│   │   ├── app/            # Admin interface build output
-│   │   └── customer/       # Customer interface build output
-│   └── migrations/         # Database migrations
+├── packages/                  # Active codebase (monorepo structure)
+│   ├── frontend/             # Frontend application (React + TypeScript + Vite)
+│   │   ├── src/
+│   │   │   ├── pages/
+│   │   │   │   ├── admin/    # Admin dashboard pages
+│   │   │   │   └── customer/ # Customer interface pages
+│   │   │   ├── components/   # Shared UI components
+│   │   │   └── hooks/       # Custom React hooks
+│   │   └── shared/          # Frontend-specific schemas
+│   ├── backend/             # Backend server (Node.js + Express + TypeScript)
+│   │   ├── src/             # Server source code
+│   │   ├── public/          # Built frontend assets (auto-generated)
+│   │   │   ├── admin/      # Admin interface build output
+│   │   │   └── customer/   # Customer interface build output
+│   │   └── migrations/     # Database migrations
+│   └── shared/              # Shared types and utilities
+│       ├── types/          # TypeScript type definitions
+│       └── schema.ts       # Validation schemas
+├── _archive/                # Historical/legacy code (DO NOT EDIT)
+│   ├── admin-client-archived/ # OLD frontend code
+│   ├── Admin_databoard/     # Legacy admin interface
+│   └── unified-server-*/    # Legacy server configurations
 └── _archive/                # Legacy implementations and development history
 ```
 
@@ -167,8 +175,10 @@ cp .env.example .env
 ## 🏗️ Development
 
 ### Project Architecture
-- **Separated Frontend**: React application in `admin-client/` with Vite build system
-- **Unified Backend**: Single server handling both admin and customer APIs
+- **Monorepo Structure**: Clean separation of frontend, backend, and shared code in `packages/`
+- **Frontend**: React application in `packages/frontend/` with Vite build system
+- **Backend**: Unified server in `packages/backend/` handling both admin and customer APIs
+- **Shared Code**: Common types and utilities in `packages/shared/`
 - **Real-time Updates**: WebSocket integration for live order updates
 - **Session Management**: Table-based session handling
 - **Mobile-First**: Responsive design for all screen sizes
@@ -177,10 +187,10 @@ cp .env.example .env
 ```bash
 # Frontend Development
 npm run dev:customer        # Auto-rebuild customer interface
-cd admin-client && npm run dev  # Frontend dev server
+cd packages/frontend && npm run dev  # Frontend dev server
 
 # Backend Development
-cd unified-server && npm run dev  # Server with nodemon
+cd packages/backend && npm run dev  # Server with nodemon
 
 # Building
 npm run build              # Build both frontend and backend
@@ -217,9 +227,14 @@ cd admin-client && npm run dev
 ```
 
 ### Important Development Notes
-- **Source files**: Modify files in `admin-client/src/`
-- **Built files**: Auto-generated in `unified-server/public/` (DO NOT edit directly)
+- **Source files**: Modify files in `packages/frontend/src/` and `packages/backend/src/`
+- **Built files**: Auto-generated in `packages/backend/public/` (DO NOT edit directly)
+- **Archived files**: Files in `_archive/` are historical - DO NOT edit
 - **To see changes**: Use build commands or auto-rebuild scripts
+
+### ⚠️ AI Assistant Guidelines
+- ✅ **DO EDIT**: Files in `packages/frontend/src/` and `packages/backend/src/`
+- ❌ **DON'T EDIT**: Files in `_archive/` or auto-generated files in `public/`
 
 ## 📄 API Documentation
 

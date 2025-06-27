@@ -216,6 +216,8 @@ export type OrderWithItems = Order & {
 
 // Extended type for desk with additional status information
 export type DeskWithStatus = Desk & {
+  number?: string; // Frontend compatibility field (maps to name)
   currentOrder?: Order;
   orderCount?: number;
+  isOccupied?: boolean; // Frontend compatibility field
 };

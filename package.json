@@ -4,14 +4,15 @@
   "description": "QR Menu Master - Unified Restaurant Ordering System",
   "private": true,
   "scripts": {
-    "dev": "cd unified-server && npm run dev",
-    "dev:customer": "concurrently \"cd admin-client && npm run dev:customer\" \"cd unified-server && npm run dev\"",
-    "build": "cd admin-client && npm run build && cd ../unified-server && npm run build",
-    "build:frontend": "cd admin-client && npm run build",
-    "build:backend": "cd unified-server && npm run build",
-    "build:customer": "cd admin-client && npm run build:customer",
-    "start": "cd unified-server && npm start",
-    "install:all": "npm install && cd unified-server && npm install && cd ../admin-client && npm install",
+    "dev": "cd packages/backend && npm run dev",
+    "dev:frontend": "cd packages/frontend && npm run dev",
+    "dev:customer": "concurrently \"cd packages/frontend && npm run dev:customer\" \"cd packages/backend && npm run dev\"",
+    "build": "cd packages/frontend && npm run build && cd ../backend && npm run build",
+    "build:frontend": "cd packages/frontend && npm run build",
+    "build:backend": "cd packages/backend && npm run build",
+    "build:customer": "cd packages/frontend && npm run build:customer",
+    "start": "cd packages/backend && npm start",
+    "install:all": "npm install && cd packages/backend && npm install && cd ../frontend && npm install",
     "clean": "cd unified-server && rm -rf node_modules dist && cd ../admin-client && rm -rf node_modules dist",
     "seed": "cd unified-server && npm run seed",
     "seed:force": "cd unified-server && npm run seed:force",
@@ -40,5 +41,8 @@
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
   }
 }

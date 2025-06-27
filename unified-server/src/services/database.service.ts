@@ -41,6 +41,7 @@ export interface IStorage {
   deleteMenuItem(id: number, shopId: number): Promise<boolean>;
   searchMenuItems(query: string, shopId: number): Promise<MenuItem[]>;
   getPopularMenuItems(shopId: number, limit: number): Promise<any[]>;
+  getWeeklyTopSalesItems(shopId: number, limit: number): Promise<any[]>;
   
   // Cart methods
   getCartItems(sessionId: string): Promise<(CartItem & { menuItem: MenuItem })[]>;
@@ -64,6 +65,7 @@ export interface IStorage {
   updateDesk(id: number, shopId: number, updateData: Partial<InsertDesk>): Promise<Desk | undefined>;
   deleteDesk(id: number, shopId: number): Promise<boolean>;
   toggleDeskStatus(id: number, shopId: number, newStatus: 'available' | 'occupied'): Promise<Desk | undefined>;
+  completeAndPayDeskOrders(deskId: number): Promise<Order[]>;
 
   // Session methods
   getSessions(shopId: number): Promise<Session[]>;
@@ -901,6 +903,52 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getWeeklyTopSalesItems(shopId: number, limit: number = 5): Promise<any[]> {
+    console.log(`🔍 DEBUG: Getting weekly top sales items for shop ${shopId}, limit: ${limit}`);
+
+    // Use PostgreSQL-specific date functions to get current week (Monday to Sunday)
+    // This matches the SQL query provided by the user
+    const result = await db
+      .select({
+        id: orderItems.menuItemId,
+        name: orderItems.itemName,
+        imageUrl: menuItems.imageUrl,
+        price: menuItems.price,
+        orderCount: sql<number>`sum(${orderItems.quantity})`.mapWith(Number),
+      })
+      .from(orderItems)
+      .leftJoin(orders, eq(orderItems.orderId, orders.id))
+      .leftJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
+      .where(and(
+        eq(orders.shopId, shopId),
+        eq(orders.paid, true), // Only count paid orders
+        sql`${orderItems.createdAt} >= date_trunc('day', NOW() - (EXTRACT(ISODOW FROM NOW())::integer % 7) * interval '1 day')`,
+        sql`${orderItems.createdAt} < date_trunc('day', NOW() - (EXTRACT(ISODOW FROM NOW())::integer % 7) * interval '1 day') + interval '7 days'`
+      ))
+      .groupBy(orderItems.itemName, orderItems.menuItemId, menuItems.imageUrl, menuItems.price)
+      .orderBy(desc(sql`sum(${orderItems.quantity})`))
+      .limit(limit);
+
+    console.log(`🔍 DEBUG: Raw database result count: ${result.length}`);
+    result.forEach((item, index) => {
+      console.log(`  ${index + 1}. ${item.name} (ID: ${item.id}) - Quantity: ${item.orderCount}`);
+    });
+
+    // Transform the result to match the expected format for the frontend
+    const transformedResult = result.map((item) => ({
+      id: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl || '',
+      price: item.price?.toString() || '0',
+      orderCount: item.orderCount,
+    }));
+
+    console.log(`🔍 DEBUG: Transformed result count: ${transformedResult.length}`);
+    console.log(`🔍 DEBUG: Returning ${transformedResult.length} items to frontend`);
+
+    return transformedResult;
+  }
+
   async searchMenuItems(query: string, shopId: number): Promise<MenuItem[]> {
     const searchTerm = `%${query.toLowerCase()}%`;
     const results = await db
@@ -1091,7 +1139,13 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Invalid session ID format');
     }
 
-    const results = await db.select().from(orders).where(eq(orders.sessionId, sessionId)).orderBy(desc(orders.createdAt));
+    // Filter out paid orders (completed orders that have been released by admin)
+    const results = await db.select().from(orders).where(
+      and(
+        eq(orders.sessionId, sessionId),
+        eq(orders.paid, false)
+      )
+    ).orderBy(desc(orders.createdAt));
     return Promise.all(
       results.map(order => this.populateOrder(order))
     );
@@ -1136,22 +1190,25 @@ export class DatabaseStorage implements IStorage {
       .set({ status })
       .where(and(eq(orders.id, id), eq(orders.shopId, shopId)))
       .returning();
-      
+
     if (result.length > 0 && ['completed', 'cancelled'].includes(status)) {
       const order = result[0];
       if (order.deskId) {
-        const otherOrders = await db.select().from(orders).where(and(
+        // Check if there are any other orders that would keep the desk occupied
+        // (orders that are not cancelled and not paid)
+        const otherActiveOrders = await db.select().from(orders).where(and(
           eq(orders.deskId, order.deskId),
           not(eq(orders.id, order.id)),
-          inArray(orders.status, ['pending', 'preparing', 'ready'])
+          not(eq(orders.status, 'cancelled')),
+          eq(orders.paid, false)
         )).limit(1);
 
-        if (otherOrders.length === 0) {
+        if (otherActiveOrders.length === 0) {
           await db.update(desks).set({ status: 'available' }).where(eq(desks.id, order.deskId));
         }
       }
     }
-    
+
     return result[0];
   }
   
@@ -1183,16 +1240,18 @@ export class DatabaseStorage implements IStorage {
   // Desk methods
   async getDesks(shopId: number): Promise<DeskWithStatus[]> {
     const allDesks = await db.select().from(desks).where(eq(desks.shopId, shopId)).orderBy(desks.name);
-    
+
+    // Find orders that make a desk occupied: status != 'cancelled' AND paid != true
     const activeOrders = await db
       .select()
       .from(orders)
       .where(and(
         eq(orders.shopId, shopId),
-        inArray(orders.status, ['pending', 'preparing', 'ready']),
+        not(eq(orders.status, 'cancelled')),
+        eq(orders.paid, false),
         not(isNull(orders.deskId))
       ));
-      
+
     const ordersByDesk = activeOrders.reduce((acc, order) => {
       if (order.deskId) {
         if (!acc[order.deskId]) {
@@ -1205,8 +1264,16 @@ export class DatabaseStorage implements IStorage {
 
     const desksWithStatus: DeskWithStatus[] = allDesks.map(desk => {
       const deskOrders = ordersByDesk[desk.id] || [];
+      const hasActiveOrders = deskOrders.length > 0;
+
       return {
         ...desk,
+        // Add number field for frontend compatibility (maps to name)
+        number: desk.name,
+        // Desk status logic: occupied if there are orders with status != 'cancelled' AND paid != true
+        status: hasActiveOrders ? 'occupied' : 'available',
+        // Transform status field to isOccupied boolean for frontend compatibility
+        isOccupied: hasActiveOrders,
         orderCount: deskOrders.length,
         currentOrder: deskOrders.sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime())[0] || undefined,
       };
@@ -1238,6 +1305,45 @@ export class DatabaseStorage implements IStorage {
   async toggleDeskStatus(id: number, shopId: number, newStatus: 'available' | 'occupied'): Promise<Desk | undefined> {
     const result = await db.update(desks).set({ status: newStatus }).where(and(eq(desks.id, id), eq(desks.shopId, shopId))).returning();
     return result[0];
+  }
+
+  async completeAndPayDeskOrders(deskId: number): Promise<Order[]> {
+    try {
+      logger.info(`Starting completeAndPayDeskOrders for desk ${deskId}`);
+
+      // Get all orders for this desk that are not cancelled and not already paid
+      const ordersToUpdate = await db.select().from(orders).where(and(
+        eq(orders.deskId, deskId),
+        not(eq(orders.status, 'cancelled')),
+        eq(orders.paid, false)
+      ));
+
+      logger.info(`Found ${ordersToUpdate.length} orders to complete and pay for desk ${deskId}`);
+
+      if (ordersToUpdate.length === 0) {
+        logger.info(`No orders to update for desk ${deskId}`);
+        return [];
+      }
+
+      // Update all non-cancelled, unpaid orders to completed and paid
+      const completedOrders = await db.update(orders)
+        .set({
+          status: 'completed',
+          paid: true
+        })
+        .where(and(
+          eq(orders.deskId, deskId),
+          not(eq(orders.status, 'cancelled')),
+          eq(orders.paid, false)
+        ))
+        .returning();
+
+      logger.info(`Completed and paid ${completedOrders.length} orders for desk ${deskId}`);
+      return completedOrders;
+    } catch (error) {
+      logger.error(`Error completing orders for desk ${deskId}:`, error);
+      throw error;
+    }
   }
 
   // Table reset functionality
@@ -1347,50 +1453,60 @@ export class DatabaseStorage implements IStorage {
     activeCustomers: number;
     menuItemsCount: number;
   }> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get today's date in YYYY-MM-DD format
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
 
-    const todayOrdersQuery = db.select({ count: sql`count(*)` }).from(orders)
-      .where(and(
-        eq(orders.shopId, shopId),
-        gte(orders.createdAt, today),
-        eq(orders.paid, true)
-      ));
-      
-    const revenueQuery = db.select({ total: sql`sum(${orders.total})` }).from(orders)
-      .where(and(
-        eq(orders.shopId, shopId),
-        gte(orders.createdAt, today),
-        eq(orders.paid, true)
-      ));
-      
-    const activeCustomersQuery = db.select({ count: sql`count(distinct ${orders.customerId})` }).from(orders)
-      .where(and(
-        eq(orders.shopId, shopId),
-        gte(orders.createdAt, today)
-      ));
-      
+    logger.info(`Getting stats for shop ${shopId}, today: ${todayStr}`);
+
+    // Use raw SQL for better date handling
+    const todayOrdersQuery = sql`
+      SELECT COUNT(*) as count
+      FROM orders
+      WHERE shop_id = ${shopId}
+        AND DATE(created_at) = DATE(${todayStr})
+        AND paid = true
+    `;
+
+    const revenueQuery = sql`
+      SELECT COALESCE(SUM(total), 0) as total
+      FROM orders
+      WHERE shop_id = ${shopId}
+        AND DATE(created_at) = DATE(${todayStr})
+        AND paid = true
+    `;
+
+    const activeCustomersQuery = sql`
+      SELECT COUNT(DISTINCT customer_id) as count
+      FROM orders
+      WHERE shop_id = ${shopId}
+        AND DATE(created_at) = DATE(${todayStr})
+    `;
+
     const menuItemsCountQuery = db.select({ count: sql`count(*)` }).from(menuItems)
       .where(eq(menuItems.shopId, shopId));
-      
+
     const [
       todayOrdersResult,
       revenueResult,
       activeCustomersResult,
       menuItemsCountResult
     ] = await Promise.all([
-      todayOrdersQuery,
-      revenueQuery,
-      activeCustomersQuery,
+      db.execute(todayOrdersQuery),
+      db.execute(revenueQuery),
+      db.execute(activeCustomersQuery),
       menuItemsCountQuery
     ]);
 
-    return {
-      todayOrders: Number(todayOrdersResult[0].count) || 0,
-      revenue: parseFloat(revenueResult[0].total as string) || 0,
-      activeCustomers: Number(activeCustomersResult[0].count) || 0,
+    const stats = {
+      todayOrders: Number(todayOrdersResult.rows[0]?.count) || 0,
+      revenue: parseFloat(todayOrdersResult.rows[0]?.total || revenueResult.rows[0]?.total) || 0,
+      activeCustomers: Number(activeCustomersResult.rows[0]?.count) || 0,
       menuItemsCount: Number(menuItemsCountResult[0].count) || 0,
     };
+
+    logger.info(`Stats result: ${JSON.stringify(stats)}`);
+    return stats;
   }
 
   // Mark table as occupied by table number

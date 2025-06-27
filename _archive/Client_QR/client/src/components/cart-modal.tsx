@@ -305,7 +305,7 @@ export function CartModal({ isOpen, onClose, onOpenOrderTracking }: CartModalPro
             <button
               onClick={handleCreateOrder}
               disabled={isLoading}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+              className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-2xl font-semibold transition-colors disabled:opacity-50"
             >
               {isLoading ? "Processing..." : "Order Confirm"}
             </button>

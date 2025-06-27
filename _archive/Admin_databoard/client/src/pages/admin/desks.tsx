@@ -217,14 +217,14 @@ export default function AdminDesks() {
 
   // Function to copy URL to clipboard
   const copyToClipboard = (desk: DeskWithStatus) => {
-    const url = `http://localhost:5000?desk=${desk.id}&table=${desk.number}`;
+    const url = `http://localhost:5000?table=${desk.name}`;
     navigator.clipboard.writeText(url).then(
       () => {
         // Show success state
         setCopiedUrls(prev => ({ ...prev, [desk.id]: true }));
         toast({
           title: "URL copied",
-          description: `QR code URL for Table ${desk.number} copied to clipboard`,
+          description: `QR code URL for Table ${desk.name} copied to clipboard`,
         });
         // Reset after 2 seconds
         setTimeout(() => {
@@ -523,7 +523,7 @@ export default function AdminDesks() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="flex items-center gap-1">
-                        Table {desk.number}
+                        {desk.name}
                         {desk.isOccupied && <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">Occupied</Badge>}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">{desk.name || `${desk.area || 'Main'} Table ${desk.number}`}</p>
@@ -594,7 +594,7 @@ export default function AdminDesks() {
                       </div>
                     </div>
                     <p className="text-xs font-mono text-blue-600 break-all">
-                      {`http://localhost:5000?desk=${desk.id}&table=${desk.number}`}
+                      {`http://localhost:5000?table=${desk.name}`}
                     </p>
                   </div>
 
@@ -745,7 +745,7 @@ export default function AdminDesks() {
         <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>QR Code for Table {qrCodeDesk?.number}</DialogTitle>
+              <DialogTitle>QR Code for Table {qrCodeDesk?.name}</DialogTitle>
               <DialogDescription>
                 Scan this QR code with a mobile device to access the table's menu
               </DialogDescription>
@@ -754,16 +754,16 @@ export default function AdminDesks() {
               {qrCodeDesk && (
                 <>
                   <div className="bg-white p-4 rounded-lg border">
-                    <img 
+                    <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                        `http://localhost:5001?desk=${qrCodeDesk.id}&table=${qrCodeDesk.number}`
-                      )}`} 
-                      alt={`QR Code for Table ${qrCodeDesk.number}`}
+                        `http://localhost:5000?table=${qrCodeDesk.name}`
+                      )}`}
+                      alt={`QR Code for Table ${qrCodeDesk.name}`}
                       className="w-48 h-48"
                     />
                   </div>
                   <p className="text-sm text-muted-foreground mt-4 text-center">
-                    This QR code links to the customer ordering page for Table {qrCodeDesk.number}
+                    This QR code links to the customer ordering page for Table {qrCodeDesk.name}
                   </p>
                 </>
               )}
@@ -776,11 +776,11 @@ export default function AdminDesks() {
               >
                 Close
               </Button>
-              <Button 
+              <Button
                 type="button"
                 onClick={() => {
                   if (qrCodeDesk) {
-                    const url = `http://localhost:5001?desk=${qrCodeDesk.id}&table=${qrCodeDesk.number}`;
+                    const url = `http://localhost:5000?table=${qrCodeDesk.name}`;
                     window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}&download=1`, '_blank');
                   }
                 }}
